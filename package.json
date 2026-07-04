@@ -1,0 +1,39 @@
+{
+  "name": "examiner-ai",
+  "version": "2.0.0",
+  "description": "AI-powered exam paper question extraction engine",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.23.0",
+    "next": "^15.0.0",
+    "openai": "^6.45.0",
+    "pdf-parse": "^2.4.5",
+    "pdfjs-dist": "^4.10.38",
+    "pdfkit": "^0.19.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4.3.2"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.2",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.5.2",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^15.0.0",
+    "typescript": "^5.7.0"
+  },
+  "optionalDependencies": {
+    "tesseract.js": "^5.1.1"
+  }
+}

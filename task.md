@@ -1,0 +1,9 @@
+- [x] Simplify HomeDashboard to support 2 upload slots (Question Paper + Answer Key) and set accept mime-types for PDF, TXT, MD, Image
+- [x] Create Ollama GLM-OCR canvas rendering PDF & Image text extractor
+- [x] Archive legacy rule-based parser files in `lib/extractor/archive/`
+- [x] Build AI evaluation engine in `/api/evaluate` using Groq with CBSE marking scheme & dual-pass verification
+- [x] Support rendering "AI Refined Answer" block in Mistakes and Full Review results tab
+- [x] Integrate `HomeDashboard` in `app/page.tsx` with double file upload state
+- [x] Add progress bar with exact percentage (0-100%) on extraction/parsing and evaluation stages
+- [x] Double-check and list Groq free models, rate limits, and our choices
+- [x] Verify everything compiles cleanly and run a full build

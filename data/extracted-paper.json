@@ -1,0 +1,127 @@
+{
+  "title": "Class 10 Science Pre-Board Examination 2026",
+  "titleLabel": "detected",
+  "subject": "Science",
+  "subjectLabel": "detected",
+  "className": "Class 10",
+  "classLabel": "detected",
+  "totalMarks": 80,
+  "totalMarksLabel": "detected",
+  "durationMinutes": 180,
+  "durationLabel": "detected",
+  "answerKeySource": "Uploaded answer key PDF",
+  "answerKeySourceLabel": "detected",
+  "sections": [
+    {
+      "id": "section-a",
+      "title": "Section A",
+      "sourceLabel": "detected",
+      "questionCount": 6,
+      "marks": 12,
+      "instructions": ["Objective questions", "Choose one correct option"]
+    },
+    {
+      "id": "section-b",
+      "title": "Section B",
+      "sourceLabel": "detected",
+      "questionCount": 4,
+      "marks": 12,
+      "instructions": ["Very short answer questions", "Answer in 20 to 30 words"]
+    },
+    {
+      "id": "section-c",
+      "title": "Section C",
+      "sourceLabel": "detected",
+      "questionCount": 3,
+      "marks": 18,
+      "instructions": ["Short answer questions", "Answer in about 50 words"]
+    },
+    {
+      "id": "section-d",
+      "title": "Section D",
+      "sourceLabel": "inferred",
+      "questionCount": 2,
+      "marks": 10,
+      "instructions": ["Long answer questions", "Explain with reasoning and examples"]
+    }
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "number": "1",
+      "sectionId": "section-a",
+      "type": "mcq",
+      "prompt": "Which device is used to measure electric current in an electric circuit?",
+      "marks": 2,
+      "sourceLabel": "detected",
+      "answerKeySource": "Uploaded answer key PDF",
+      "options": ["Voltmeter", "Ammeter", "Galvanometer", "Thermometer"]
+    },
+    {
+      "id": "q2",
+      "number": "2",
+      "sectionId": "section-a",
+      "type": "mcq",
+      "prompt": "The image formed by a plane mirror is always:",
+      "marks": 2,
+      "sourceLabel": "detected",
+      "answerKeySource": "Uploaded answer key PDF",
+      "options": ["Real and diminished", "Virtual and erect", "Real and inverted", "Virtual and magnified"]
+    },
+    {
+      "id": "q3",
+      "number": "7",
+      "sectionId": "section-b",
+      "type": "short",
+      "prompt": "Why is magnesium ribbon cleaned before burning in air?",
+      "marks": 3,
+      "sourceLabel": "detected",
+      "answerKeySource": "Uploaded answer key PDF",
+      "answerPlaceholder": "Write a short scientific reason in one or two lines."
+    },
+    {
+      "id": "q4",
+      "number": "8",
+      "sectionId": "section-b",
+      "type": "short",
+      "prompt": "State one function of the stomata in plant leaves.",
+      "marks": 3,
+      "sourceLabel": "inferred",
+      "answerKeySource": "Uploaded answer key PDF",
+      "answerPlaceholder": "State one function clearly and directly."
+    },
+    {
+      "id": "q5",
+      "number": "11",
+      "sectionId": "section-c",
+      "type": "short",
+      "prompt": "Differentiate between saturated and unsaturated hydrocarbons with one example each.",
+      "marks": 6,
+      "sourceLabel": "detected",
+      "answerKeySource": "Uploaded answer key PDF",
+      "answerPlaceholder": "Compare both types and include examples."
+    },
+    {
+      "id": "q6",
+      "number": "12",
+      "sectionId": "section-c",
+      "type": "short",
+      "prompt": "Explain the role of the lens in the human eye in focusing images.",
+      "marks": 6,
+      "sourceLabel": "detected",
+      "answerKeySource": "Uploaded answer key PDF",
+      "answerPlaceholder": "Mention accommodation and the role of ciliary muscles."
+    },
+    {
+      "id": "q7",
+      "number": "15",
+      "sectionId": "section-d",
+      "type": "long",
+      "prompt": "Describe the process of photosynthesis and explain why it is essential for life on Earth.",
+      "marks": 5,
+      "sourceLabel": "detected",
+      "answerKeySource": "Uploaded answer key PDF",
+      "answerPlaceholder": "Explain inputs, outputs, chlorophyll, and ecological importance."
+    }
+  ]
+}
