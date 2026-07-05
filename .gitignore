@@ -46,3 +46,6 @@ Thumbs.db
 # Codex and Agent leftovers
 .codex/
 .gemini/
+
+# Tauri sidecar binaries
+src-tauri/binaries/

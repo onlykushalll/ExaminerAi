@@ -8,8 +8,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
+    "download-ollama": "powershell -ExecutionPolicy Bypass -File download-ollama.ps1",
+    "tauri:dev": "npm run download-ollama && tauri dev",
+    "tauri:build": "npm run download-ollama && tauri build",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

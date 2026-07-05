@@ -140,5 +140,123 @@ pub async fn ollama_pull_model(
         }
     }
 
+    Ok(models)
+}
+
+use tauri_plugin_shell::ShellExt;
+use tauri::{AppHandle, Emitter, Manager};
+use std::process::Child;
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+use tokio::time::sleep;
+
+// Global to hold the running Ollama process so we can kill it on app exit
+static OLLAMA_PROCESS: Mutex<Option<Child>> = Mutex::new(None);
+
+/// Start the bundled Ollama sidecar in the background.
+/// Called on app launch. If Ollama is already running externally, skips spawning.
+#[tauri::command]
+pub async fn start_ollama_sidecar(app: AppHandle) -> Result<bool, String> {
+    // First check if Ollama is already running (user might have it installed system-wide)
+    if ollama_health(None).await.unwrap_or(false) {
+        println!("[ollama] Already running externally — skipping sidecar spawn");
+        return Ok(true);
+    }
+
+    println!("[ollama] Starting bundled sidecar...");
+    
+    // Get the sidecar binary path
+    let sidecar = app.shell().sidecar("ollama")
+        .map_err(|e| format!("Failed to find ollama sidecar: {}", e))?;
+    
+    let (mut rx, child) = sidecar
+        .args(["serve"])
+        .spawn()
+        .map_err(|e| format!("Failed to spawn ollama sidecar: {}", e))?;
+
+    // Store the child process so we can kill it on exit
+    {
+        let mut proc = OLLAMA_PROCESS.lock().unwrap();
+        *proc = Some(child);
+    }
+
+    // Spawn a task to read sidecar output (for debugging)
+    tauri::async_runtime::spawn(async move {
+        use futures_util::StreamExt;
+        while let Some(event) = rx.next().await {
+            if let Some(line) = event.event.as_deref() {
+                println!("[ollama-sidecar] {}", line);
+            }
+        }
+    });
+
+    // Wait for Ollama to be healthy (max 30 seconds)
+    let start = Instant::now();
+    while start.elapsed() < Duration::from_secs(30) {
+        sleep(Duration::from_secs(1)).await;
+        if ollama_health(None).await.unwrap_or(false) {
+            println!("[ollama] Sidecar is healthy!");
+            return Ok(true);
+        }
+    }
+
+    Err("Ollama sidecar failed to start within 30 seconds".to_string())
+}
+
+/// Stop the Ollama sidecar (called on app exit)
+#[tauri::command]
+pub fn stop_ollama_sidecar() -> Result<(), String> {
+    let mut proc = OLLAMA_PROCESS.lock().unwrap();
+    if let Some(child) = proc.take() {
+        println!("[ollama] Stopping sidecar...");
+        child.kill().map_err(|e| format!("Failed to kill ollama: {}", e))?;
+    }
     Ok(())
+}
+
+/// Check if GLM-OCR model is installed. If not, auto-download it.
+/// Emits real progress events to the frontend.
+#[tauri::command]
+pub async fn ensure_glm_ocr_model(app: AppHandle, url: Option<String>) -> Result<bool, String> {
+    let base_url = url.unwrap_or_else(|| "http://localhost:11434".to_string());
+    
+    // Check if model is already installed
+    let models = ollama_list_models(Some(base_url.clone())).await.unwrap_or_default();
+    if models.iter().any(|m| m.contains("glm-ocr")) {
+        println!("[ollama] GLM-OCR already installed");
+        let _ = app.emit("ollama-pull-progress", 100u8);
+        return Ok(true);
+    }
+
+    println!("[ollama] GLM-OCR not found — auto-downloading...");
+    let _ = app.emit("ollama-pull-status", "Downloading GLM-OCR model (1.4GB)...");
+    
+    // Call the existing pull function (already implemented)
+    ollama_pull_model(app, "glm-ocr:latest".to_string(), Some(base_url)).await?;
+    
+    println!("[ollama] GLM-OCR download complete!");
+    let _ = app.emit("ollama-pull-status", "GLM-OCR ready!");
+    Ok(true)
+}
+
+/// Get the full setup status — used by the frontend on app launch
+#[tauri::command]
+pub async fn get_ollama_setup_status(url: Option<String>) -> Result<serde_json::Value, String> {
+    let base_url = url.unwrap_or_else(|| "http://localhost:11434".to_string());
+    let running = ollama_health(Some(base_url.clone())).await.unwrap_or(false);
+    
+    let models = if running {
+        ollama_list_models(Some(base_url)).await.unwrap_or_default()
+    } else {
+        vec![]
+    };
+
+    let has_glm_ocr = models.iter().any(|m| m.contains("glm-ocr"));
+
+    Ok(serde_json::json!({
+        "running": running,
+        "models": models,
+        "has_glm_ocr": has_glm_ocr,
+        "ready": running && has_glm_ocr
+    }))
 }
