@@ -4,34 +4,41 @@
   "description": "AI-powered exam paper question extraction engine",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2.11.1",
+    "@tauri-apps/plugin-store": "^2.4.3",
     "clsx": "^2.1.1",
     "lucide-react": "^1.23.0",
-    "next": "^15.0.0",
     "openai": "^6.45.0",
     "pdf-parse": "^2.4.5",
     "pdfjs-dist": "^4.10.38",
     "pdfkit": "^0.19.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-router-dom": "^7.18.1",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.3.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.2",
+    "@tailwindcss/vite": "^4.3.2",
+    "@tauri-apps/cli": "^2.11.4",
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.5.2",
     "eslint": "^9.0.0",
-    "eslint-config-next": "^15.0.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vite": "^8.1.3"
   },
   "optionalDependencies": {
     "tesseract.js": "^5.1.1"
