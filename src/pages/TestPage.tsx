@@ -12,6 +12,8 @@ export default function TestPage() {
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evaluatingProgressPercent, setEvaluatingProgressPercent] = useState(0);
   const [evaluatingProgressMessage, setEvaluatingProgressMessage] = useState('');
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [lastPayload, setLastPayload] = useState<any | null>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem('examiner-ai-current-paper');
@@ -38,6 +40,8 @@ export default function TestPage() {
   }
 
   const handleSubmit = async (payload: any) => {
+    setLastPayload(payload);
+    setSubmitError(null);
     setIsEvaluating(true);
     setEvaluatingProgressPercent(5);
     setEvaluatingProgressMessage('Preparing answers for Board evaluation...');
@@ -46,8 +50,70 @@ export default function TestPage() {
     const answersList = payload.submittedAnswers || [];
     const evaluations: any[] = [];
 
+    // Check for empty/blank answer submission
+    const answeredCount = answersList.filter((a: any) => a.answer && a.answer.trim().length > 0).length;
+
     try {
-      // Evaluate each question sequentially or in parallel
+      if (answeredCount === 0) {
+        // Skip evaluation loop, go straight to results with all zeros
+        setEvaluatingProgressPercent(90);
+        setEvaluatingProgressMessage('Formatting results...');
+        const evaluationResponse = {
+          evaluationId: Math.random().toString(36).substring(7),
+          submissionId: id,
+          status: 'completed' as const,
+          evaluationMode: 'ai-generated-answers' as const,
+          sourceLabel: 'Groq Board Evaluator',
+          totalScore: 0,
+          totalMarks: answersList.reduce((sum: number, ans: any) => sum + (ans.totalMarks || 5), 0),
+          evaluations: answersList.map((ans: any, i: number) => ({
+            questionId: ans.questionId,
+            questionNumber: ans.questionNumber || String(i + 1),
+            questionText: ans.questionText || '',
+            maxMarks: ans.totalMarks || 5,
+            marksAwarded: 0,
+            feedback: 'Not attempted.',
+            missingPoints: ['No answer provided'],
+            strengths: [],
+            refinedAnswer: ans.expectedAnswer || '',
+            improvements: [],
+            mistakes: [],
+          })),
+          completedAt: new Date().toISOString(),
+        };
+
+        const examResult = {
+          savedAt: new Date().toISOString(),
+          paper,
+          evaluation: evaluationResponse,
+          submittedAnswers: answersList,
+          answeredCount: 0,
+          totalQuestions: payload.totalQuestions,
+        };
+
+        saveExamResult(examResult);
+
+        const saved = localStorage.getItem('examiner-ai-saved-papers');
+        const list = saved ? JSON.parse(saved) : [];
+        list.unshift({
+          id,
+          title: paper?.title || paper?.fileName || 'Untitled Paper',
+          subject: paper?.subject || 'Exam Paper',
+          status: 'Evaluated',
+          progress: 100,
+          score: 0,
+          updatedAt: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
+          fullResult: examResult,
+          paperData: paper,
+        });
+        localStorage.setItem('examiner-ai-saved-papers', JSON.stringify(list));
+
+        setEvaluatingProgressPercent(100);
+        navigate('/results');
+        return;
+      }
+
+      // Evaluate each question sequentially
       for (let i = 0; i < answersList.length; i++) {
         const ans = answersList[i];
         const pct = 5 + Math.round((i / answersList.length) * 85);
@@ -132,8 +198,8 @@ export default function TestPage() {
       
       list.unshift({
         id,
-        title: paper.title || paper.fileName || 'Untitled Paper',
-        subject: paper.subject || 'Exam Paper',
+        title: paper?.title || paper?.fileName || 'Untitled Paper',
+        subject: paper?.subject || 'Exam Paper',
         status: 'Evaluated',
         progress: 100,
         score: Math.round((evaluationResponse.totalScore / (evaluationResponse.totalMarks || 1)) * 100),
@@ -145,15 +211,39 @@ export default function TestPage() {
 
       setEvaluatingProgressPercent(100);
       navigate('/results');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Final submission packaging failed:', error);
       setIsEvaluating(false);
+      setSubmitError(error instanceof Error ? error.message : 'Evaluation failed. Check your network and API key.');
     }
   };
 
   return (
     <AppShell currentPath="/test">
-      {isEvaluating ? (
+      {submitError ? (
+        <div className="flex min-h-[60vh] items-center justify-center bg-mist text-ink p-8">
+          <div className="w-full max-w-md text-center bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm">
+            <div className="text-4xl mb-4">⚠️</div>
+            <h2 className="font-serif text-2xl font-bold mb-2 text-amber-600">Evaluation Suspended</h2>
+            <p className="text-sm text-slate-500 mb-6">{submitError}</p>
+            <div className="flex gap-4 justify-center">
+              <button
+                onClick={() => setSubmitError(null)}
+                className="inline-flex rounded-full border border-slate-200 px-6 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 cursor-pointer"
+              >
+                Back
+              </button>
+              <button
+                onClick={() => handleSubmit(lastPayload)}
+                className="inline-flex rounded-full bg-ink px-6 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 cursor-pointer"
+                style={{ color: '#ffffff' }}
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : isEvaluating ? (
         <div className="flex min-h-[60vh] items-center justify-center bg-mist text-ink p-8">
           <div className="w-full max-w-md text-center bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-accent mx-auto mb-6" />

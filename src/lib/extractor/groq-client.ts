@@ -122,9 +122,15 @@ async function createChatCompletionWithFallback(
     } catch (err: any) {
       console.warn(`[ai-client] Model ${model} failed:`, err?.message || err);
       lastError = err;
+
+      // Rate limit: wait with exponential backoff before next attempt
+      const isRateLimit = err?.status === 429 || err?.status === 413 ||
+        /rate.?limit/i.test(err?.message || '') || /tpm/i.test(err?.message || '');
+
       if (i < chain.length - 1) {
-        console.log(`[ai-client] Sleeping for 1s before trying fallback model...`);
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        const waitMs = isRateLimit ? Math.min(30000, 2000 * Math.pow(2, i)) : 1000;
+        console.log(`[ai-client] ${isRateLimit ? 'Rate limited' : 'Error'} — waiting ${waitMs}ms before fallback...`);
+        await new Promise(resolve => setTimeout(resolve, waitMs));
       }
     }
   }
