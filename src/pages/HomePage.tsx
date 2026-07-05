@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { extractTextFromFile, validateFile } from '@/lib/extractor/text-extractor';
 import type { ExtractedQuestion, ExtractionResult } from '@/lib/extractor/types';
-import { parseQuestionsWithGroq } from '@/lib/extractor/groq-client';
+import { parseQuestionsWithGroq, isGroqEnabled } from '@/lib/extractor/groq-client';
 import { AppShell } from '@/components/app-shell';
 import { PageHeader } from '@/components/page-header';
 import { HomeDashboard, SelectedFiles } from '@/components/home-dashboard';
@@ -129,6 +129,15 @@ export default function Home() {
         progressPercent: 85,
         progress: 'Structuring questions with 3-pass engine...',
       }));
+
+      if (!isGroqEnabled()) {
+        setState(prev => ({
+          ...prev,
+          stage: 'error',
+          error: 'No API key configured. Go to Settings to add your Groq API key.',
+        }));
+        return;
+      }
 
       // ── Step 2: Parse questions (direct Groq client) ────────────
       const startTime = Date.now();

@@ -83,6 +83,8 @@ export type SavedTest = {
   status: "Draft" | "Completed" | "Evaluated";
   progress: number;
   score?: number;
+  fullResult?: any;
+  paperData?: any;
 };
 
 export type RecentUpload = {

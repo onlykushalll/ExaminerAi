@@ -4,6 +4,7 @@ import { TestExperience } from '@/components/test-experience';
 import { AppShell } from '@/components/app-shell';
 import type { QuestionExtractionResponse } from '@/lib/api-types';
 import { saveExamResult } from '@/lib/result-storage';
+import { evaluateAnswerWithGroq } from '@/lib/extractor/groq-client';
 
 export default function TestPage() {
   const navigate = useNavigate();
@@ -54,52 +55,47 @@ export default function TestPage() {
         setEvaluatingProgressMessage(`Evaluating Question ${ans.questionNumber || (i + 1)} of ${answersList.length}...`);
 
         try {
-          const res = await fetch('/api/evaluate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              question: ans.questionText || '',
-              answer: ans.answer || '',
-              reference: ans.expectedAnswer || '',
-              max_marks: ans.totalMarks || 5,
-              mode: ans.questionType === 'mcq' ? 'mcq' : 'subjective'
-            })
-          });
+          const evalResult = await evaluateAnswerWithGroq(
+            ans.questionText || '',
+            ans.answer || '',
+            ans.expectedAnswer || undefined,
+            ans.totalMarks || 5,
+            (ans.questionType === 'mcq' ? 'mcq' : (ans.questionType === 'assertion_reason' ? 'assertion_reason' : 'subjective'))
+          );
 
-          if (!res.ok) {
-            throw new Error(`Server returned status ${res.status}`);
-          }
-
-          const evalItem = await res.json();
           evaluations.push({
             questionId: ans.questionId,
             questionNumber: ans.questionNumber || String(i + 1),
             questionText: ans.questionText || '',
             maxMarks: ans.totalMarks || 5,
-            marksAwarded: evalItem.marksAwarded ?? 0,
-            feedback: evalItem.feedback || '',
-            missingPoints: evalItem.missingPoints || [],
-            strengths: evalItem.strengths || [],
-            refinedAnswer: evalItem.refinedAnswer || '',
-            improvements: evalItem.improvements || [],
-            mistakes: evalItem.mistakes || [],
+            marksAwarded: evalResult.marksAwarded,
+            feedback: evalResult.feedback,
+            missingPoints: evalResult.missingPoints,
+            strengths: evalResult.strengths,
+            refinedAnswer: evalResult.refinedAnswer,
+            improvements: [],
+            mistakes: [],
           });
         } catch (err: any) {
           console.error(`Failed to evaluate question ${ans.questionId}:`, err);
-          // Graceful fallback evaluation item
           evaluations.push({
             questionId: ans.questionId,
             questionNumber: ans.questionNumber || String(i + 1),
             questionText: ans.questionText || '',
             maxMarks: ans.totalMarks || 5,
             marksAwarded: 0,
-            feedback: 'Evaluation failed. Please review manually.',
+            feedback: 'Evaluation failed: ' + (err.message || 'Unknown error'),
             missingPoints: [],
             strengths: [],
             refinedAnswer: ans.expectedAnswer || '',
             improvements: [],
             mistakes: [],
           });
+        }
+
+        // Rate limit: 1.5s delay between evaluations (30 RPM = 2s per request minimum)
+        if (i < answersList.length - 1) {
+          await new Promise(r => setTimeout(r, 1500));
         }
       }
 
@@ -136,12 +132,14 @@ export default function TestPage() {
       
       list.unshift({
         id,
-        title: paper.title,
+        title: paper.title || paper.fileName || 'Untitled Paper',
         subject: paper.subject || 'Exam Paper',
         status: 'Evaluated',
         progress: 100,
         score: Math.round((evaluationResponse.totalScore / (evaluationResponse.totalMarks || 1)) * 100),
         updatedAt: new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }),
+        fullResult: examResult,
+        paperData: paper,
       });
       localStorage.setItem('examiner-ai-saved-papers', JSON.stringify(list));
 

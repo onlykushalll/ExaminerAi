@@ -89,8 +89,12 @@ const getAIChain = (type: 'text' | 'vision'): { client: OpenAI; model: string }[
  * Checks if Groq or OpenRouter AI parsing is configured and enabled.
  */
 export function isGroqEnabled(): boolean {
-  return (typeof process.env.GROQ_API_KEY === 'string' && process.env.GROQ_API_KEY.length > 0) ||
-         (typeof process.env.OPENROUTER_API_KEY === 'string' && process.env.OPENROUTER_API_KEY.length > 0);
+  const groqKey = getApiKey('GROQ_API_KEY');
+  const openRouterKey = getApiKey('OPENROUTER_API_KEY');
+  return Boolean(
+    (groqKey && groqKey.trim().length > 0) ||
+    (openRouterKey && openRouterKey.trim().length > 0)
+  );
 }
 
 /**

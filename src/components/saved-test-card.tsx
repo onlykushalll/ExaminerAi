@@ -6,13 +6,22 @@ export function SavedTestCard({ test }: { test: SavedTest }) {
   const navigate = useNavigate();
 
   const handleOpen = () => {
-    const rawPaper = localStorage.getItem(`examiner-ai-paper-${test.id}`);
-    if (rawPaper) {
-      localStorage.setItem('examiner-ai-current-paper', rawPaper);
+    if (test.fullResult) {
+      // Restore the exam result for viewing in /results
+      localStorage.setItem('examiner-ai-latest-result', JSON.stringify(test.fullResult));
+      navigate('/results');
+    } else if (test.paperData) {
+      // Restore the paper for retaking the test
+      localStorage.setItem('examiner-ai-current-paper', JSON.stringify(test.paperData));
       navigate('/test');
     } else {
-      // Fallback if paper payload is missing
-      navigate('/');
+      const rawPaper = localStorage.getItem(`examiner-ai-paper-${test.id}`);
+      if (rawPaper) {
+        localStorage.setItem('examiner-ai-current-paper', rawPaper);
+        navigate('/test');
+      } else {
+        navigate('/');
+      }
     }
   };
 
