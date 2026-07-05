@@ -36,8 +36,9 @@ const getAIClientAndChain = (type: 'text' | 'vision') => {
       ? [process.env.OPENROUTER_MODEL_VISION || 'google/gemma-2-9b-it:free']
       : [
           process.env.OPENROUTER_MODEL_TEXT || 'meta-llama/llama-3.3-70b-instruct:free',
-          'google/gemma-4-31b-it:free',
-          'openai/gpt-oss-20b:free'
+          'nvidia/nemotron-3-ultra-550b-a55b:free',
+          'openai/gpt-oss-120b:free',
+          'nvidia/nemotron-3-super-120b-a12b:free'
         ];
     return { client, chain, provider: 'openrouter' as const };
   }
