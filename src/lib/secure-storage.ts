@@ -1,4 +1,4 @@
-import { isTauri } from '@tauri-apps/api/core';
+const isTauri = () => typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
 
 export async function secureGet(key: string): Promise<string | null> {
   if (isTauri()) {

@@ -4,7 +4,7 @@ import { AppShell } from '@/components/app-shell';
 import { PageHeader } from '@/components/page-header';
 import { Key, Server, Settings2, ShieldCheck, CheckCircle2, AlertCircle, RefreshCw, Download } from 'lucide-react';
 import { secureGet, secureSet } from '@/lib/secure-storage';
-import { isTauri } from '@tauri-apps/api/core';
+const isTauri = () => typeof window !== 'undefined' && (window as any).__TAURI__ !== undefined;
 
 export default function SettingsPage() {
   const location = useLocation();
