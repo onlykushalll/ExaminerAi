@@ -4,7 +4,7 @@ import HomePage from './pages/HomePage';
 import TestPage from './pages/TestPage';
 import ResultsPage from './pages/ResultsPage';
 import MyPapersPage from './pages/MyPapersPage';
-import SettingsPage from './pages/SettingsPage';
+import SettingsPage from './pages/SettingsPage'; // Settings dashboard component
 import { secureGet } from '@/lib/secure-storage';
 
 export default function App() {
