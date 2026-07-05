@@ -92,6 +92,17 @@ async function extractFromPDF(
     const result = await extractTextFromPDF(file);
     warnings.push(...result.warnings);
 
+    // Always extract page images for diagram display (runs in parallel with text extraction)
+    let pageImages: string[] | undefined;
+    try {
+      pageImages = await extractPageImagesFromPDF(file, (pct, msg) => {
+        options.onProgress?.(pct, `[Page Images] ${msg}`);
+      });
+    } catch (imgErr: any) {
+      // Page image extraction is optional — don't fail the whole extraction
+      console.warn('[text-extractor] Page image extraction failed:', imgErr.message);
+    }
+
     // Check if PDF appears image-based
     if (isImageBasedPDF(result.text)) {
       warnings.push(
@@ -102,29 +113,23 @@ async function extractFromPDF(
         const ocrText = await extractTextWithGLMOCR(file, options.onProgress);
         return {
           text: ocrText,
+          pageImages,
           fileType: 'pdf',
           pageCount: result.pageCount,
           warnings,
         };
       } catch (ocrErr: any) {
-        warnings.push(`Local GLM-OCR not available (${ocrErr.message}). Extracting page images for Cloud Vision OCR...`);
-        try {
-          const pageImages = await extractPageImagesFromPDF(file, options.onProgress);
-          return {
-            text: '',
-            pageImages,
-            fileType: 'pdf',
-            pageCount: result.pageCount,
-            warnings,
-          };
-        } catch (imgErr: any) {
-          warnings.push(`Failed to extract page images: ${imgErr.message}. Falling back to standard text extraction.`);
+        warnings.push(`Local GLM-OCR not available (${ocrErr.message}). Using page images for Cloud Vision OCR...`);
+        // pageImages already extracted above — use them as fallback
+        if (pageImages && pageImages.length > 0) {
+          return { text: '', pageImages, fileType: 'pdf', pageCount: result.pageCount, warnings };
         }
       }
     }
 
     return {
       text: result.text,
+      pageImages,
       fileType: 'pdf',
       pageCount: result.pageCount,
       warnings,

@@ -26,6 +26,7 @@ interface AppState {
   files: SelectedFiles;
   extractedText: string;
   answerKeyText: string;
+  pageImages: string[] | null;
   result: ExtractionResult | null;
   error: string | null;
   progress: string;
@@ -41,6 +42,7 @@ const INITIAL_STATE: AppState = {
   },
   extractedText: '',
   answerKeyText: '',
+  pageImages: null,
   result: null,
   error: null,
   progress: '',
@@ -145,6 +147,7 @@ export default function Home() {
         ...prev,
         stage: 'finishing',
         result: { ...data, warnings },
+        pageImages: qpExtraction.pageImages ?? null,
         processingTimeMs: processingTime,
         progress: 'test ready, lol!',
         progressPercent: 100,
@@ -193,6 +196,7 @@ export default function Home() {
       durationSource: 'inferred',
       rawText: state.extractedText,
       normalizedText: state.extractedText,
+      pageImages: state.pageImages ?? [],
       lines: [],
       sections: [],
       sectionNames: state.result.sections ?? [],
@@ -201,7 +205,7 @@ export default function Home() {
         number: q.id,
         text: q.question,
         questionText: q.question,
-        type: q.type === 'mcq' ? 'mcq' : 'subjective',
+        type: q.type || 'subjective',
         marks: q.marks ?? null,
         marksSource: 'detected',
         section: q.section || 'Section A',

@@ -161,6 +161,46 @@ export async function ocrPageWithGroqVision(base64Image: string): Promise<string
 }
 
 /**
+ * Deterministic solution-section detector.
+ * Scans raw text for solution markers BEFORE the LLM call.
+ * If found, hasSolutions is forced to true regardless of LLM output.
+ */
+function detectSolutionsDeterministically(text: string, answerKeyText?: string): boolean {
+  if (answerKeyText && answerKeyText.trim().length > 20) return true;
+
+  const solutionMarkers = [
+    /^\s*solutions?\s*[:\-\n]/im,
+    /^\s*answer\s*key\s*[:\-\n]/im,
+    /^\s*marking\s*scheme\s*[:\-\n]/im,
+    /^\s*answers?\s*[:\-\n]/im,
+    /\bstep\s*1\s*[:\-]/i,
+    /\bgiven\s*data\s*[:\-]/i,
+    /\busing\s*ohm'?s?\s*law\b/i,
+    /\bformula\s*:\s*/i,
+    /\bcalculation\s*:\s*/i,
+    /\btherefore\b/i,
+    /\bhence\b\s*,?\s*(the|we|it)/i,
+    /\bwe\s*know\s*that\b/i,
+    /\baccording\s*to\b.*\blaw\b/i,
+    /\bans\.?\s*[:\-\(]/i,
+    /\bcorrect\s*option\s*is\b/i,
+  ];
+
+  // Check the last 40% of the document (solutions usually come after questions)
+  const splitPoint = Math.floor(text.length * 0.6);
+  const latterSection = text.slice(splitPoint);
+
+  let matchCount = 0;
+  for (const marker of solutionMarkers) {
+    if (marker.test(text)) matchCount++;
+    if (marker.test(latterSection)) matchCount++;
+  }
+
+  // If 2+ distinct solution markers found, OR 3+ in the latter section, it has solutions
+  return matchCount >= 2;
+}
+
+/**
  * 3-PASS AI QUESTION EXTRACTION ENGINE
  *
  * Pass 1: Document Layout Detection — identify headers, instructions, sections, questions, solutions
@@ -300,9 +340,10 @@ Return ONLY a valid JSON object (no markdown, no code blocks):
       marks: typeof q.marks === 'number' ? q.marks : undefined,
     }));
 
+    const deterministicHasSolutions = detectSolutionsDeterministically(text, answerKeyText);
     const warnings: string[] = Array.isArray(parsed.warnings) ? parsed.warnings : [];
 
-    if (!parsed.hasSolutions && !answerKeyText) {
+    if (!parsed.hasSolutions && !deterministicHasSolutions && !answerKeyText) {
       warnings.push('No answer key or solutions detected in the document. Reference answers will be dynamically generated during evaluation.');
     }
 
@@ -310,8 +351,8 @@ Return ONLY a valid JSON object (no markdown, no code blocks):
       questions,
       total: questions.length,
       warnings,
-      hasSolutions: Boolean(parsed.hasSolutions || answerKeyText),
-      hasAnswerKey: Boolean(parsed.hasAnswerKey || answerKeyText),
+      hasSolutions: Boolean(parsed.hasSolutions || deterministicHasSolutions || answerKeyText),
+      hasAnswerKey: Boolean(parsed.hasAnswerKey || deterministicHasSolutions || answerKeyText),
       sections: Array.isArray(parsed.sections) ? parsed.sections : undefined,
     };
   } catch (err) {

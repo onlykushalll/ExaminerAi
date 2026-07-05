@@ -68,6 +68,7 @@ export function TestExperience({ paper, onSubmit }: TestExperienceProps) {
         sectionId: "section-1",
         type: question.type,
         prompt: question.questionText || question.text,
+        options: question.options,
         marks: normalizeQuestionMarks(question.marks),
         expectedAnswer: findExpectedAnswer(question.number, paper),
         answerKeySource: findAnswerSource(question.number, paper),
@@ -545,7 +546,44 @@ export function TestExperience({ paper, onSubmit }: TestExperienceProps) {
                 </button>
               </div>
 
-              <p className="mt-6 whitespace-pre-line text-lg font-medium leading-8 text-ink">{currentQuestion.prompt}</p>
+              {currentQuestion.type === "case_study" ? (
+                <div className="mt-6 space-y-4">
+                  {/* Case study passage — styled as a blockquote */}
+                  {(() => {
+                    const parts = parseCaseStudyPrompt(currentQuestion.prompt);
+                    return (
+                      <>
+                        {parts.passage && (
+                          <blockquote className="rounded-r-[0.5rem] border-l-4 border-amber-400 bg-amber-50/50 px-5 py-4">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 mb-2">
+                              Case Study
+                            </p>
+                            <p className="whitespace-pre-line text-sm leading-7 text-slate-700">
+                              {parts.passage}
+                            </p>
+                          </blockquote>
+                        )}
+                        {parts.subparts.length > 0 && (
+                          <div className="space-y-3">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                              Questions
+                            </p>
+                            {parts.subparts.map((subpart, idx) => (
+                              <div key={idx} className="rounded-[1rem] border border-slate-200 bg-white p-4">
+                                <p className="whitespace-pre-line text-sm leading-6 text-ink">
+                                  {subpart}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <p className="mt-6 whitespace-pre-line text-lg font-medium leading-8 text-ink">{currentQuestion.prompt}</p>
+              )}
 
               {paper.pageImages && paper.pageImages.length > 0 ? (
                 <div className="mt-4 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
@@ -572,15 +610,67 @@ export function TestExperience({ paper, onSubmit }: TestExperienceProps) {
                 <label className="block text-sm font-medium text-slate-700" htmlFor={`answer-${currentQuestion.id}`}>
                   Your answer
                 </label>
-                <textarea
-                  id={`answer-${currentQuestion.id}`}
-                  value={answers[currentQuestion.id] ?? ""}
-                  disabled={!canAnswer}
-                  onChange={(event) => updateAnswer(event.target.value)}
-                  rows={currentQuestion.type === "mcq" ? 3 : 10}
-                  placeholder={currentQuestion.answerPlaceholder}
-                  className="w-full rounded-[1.5rem] border border-slate-200 bg-slate-50 px-4 py-4 outline-none placeholder:text-slate-400 focus:border-ink disabled:cursor-not-allowed disabled:bg-slate-100"
-                />
+                {/* Option-based questions: radio button selector */}
+                {currentQuestion.options && currentQuestion.options.length > 0 ? (
+                  <div role="radiogroup" aria-label="Answer options" className="space-y-2">
+                    {currentQuestion.options.map((option: string, optIndex: number) => {
+                      const optionLetter = String.fromCharCode(65 + optIndex);
+                      const isSelected = (answers[currentQuestion.id] ?? "").trim().toUpperCase() === optionLetter;
+                      return (
+                        <label
+                          key={optIndex}
+                          className={cn(
+                            "flex cursor-pointer items-start gap-3 rounded-[1.25rem] border p-4 transition",
+                            isSelected
+                              ? "border-ink bg-ink/5"
+                              : "border-slate-200 bg-white hover:border-slate-300",
+                            !canAnswer && "cursor-not-allowed opacity-60"
+                          )}
+                        >
+                          <input
+                            type="radio"
+                            name={`answer-${currentQuestion.id}`}
+                            value={optionLetter}
+                            checked={isSelected}
+                            disabled={!canAnswer}
+                            onChange={() => updateAnswer(optionLetter)}
+                            className="mt-1 h-4 w-4 accent-ink"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <span className="font-mono text-sm font-semibold text-ink">{optionLetter}.</span>
+                            <span className="ml-2 text-sm leading-6 text-slate-700">{option}</span>
+                          </div>
+                        </label>
+                      );
+                    })}
+                    {/* Allow manual override for edge cases */}
+                    <details className="mt-2">
+                      <summary className="cursor-pointer text-xs text-slate-500 hover:text-ink">
+                        Type answer manually instead
+                      </summary>
+                      <textarea
+                        id={`answer-${currentQuestion.id}`}
+                        value={answers[currentQuestion.id] ?? ""}
+                        disabled={!canAnswer}
+                        onChange={(event) => updateAnswer(event.target.value)}
+                        rows={2}
+                        placeholder="Type option letter (A, B, C, D) or your own answer"
+                        className="mt-2 w-full rounded-[1.5rem] border border-slate-200 bg-slate-50 px-4 py-3 outline-none placeholder:text-slate-400 focus:border-ink disabled:cursor-not-allowed disabled:bg-slate-100"
+                      />
+                    </details>
+                  </div>
+                ) : (
+                  /* Subjective questions: textarea */
+                  <textarea
+                    id={`answer-${currentQuestion.id}`}
+                    value={answers[currentQuestion.id] ?? ""}
+                    disabled={!canAnswer}
+                    onChange={(event) => updateAnswer(event.target.value)}
+                    rows={currentQuestion.marks && currentQuestion.marks >= 5 ? 12 : 8}
+                    placeholder={currentQuestion.answerPlaceholder}
+                    className="w-full rounded-[1.5rem] border border-slate-200 bg-slate-50 px-4 py-4 outline-none placeholder:text-slate-400 focus:border-ink disabled:cursor-not-allowed disabled:bg-slate-100"
+                  />
+                )}
                 <div className="flex flex-wrap gap-3">
                   <button
                     type="button"
@@ -913,14 +1003,15 @@ function LegendItem({
 }
 
 function buildAnswerPlaceholder(type: QuestionType, marks: number | null) {
-  if (type === "mcq") {
-    return "Enter the selected option or the correct choice";
+  if (type === "mcq" || type === "assertion_reason") {
+    return "Select an option above, or type the option letter (A, B, C, D)";
   }
-
+  if (type === "case_study") {
+    return "Write your answer addressing all subparts of the case study";
+  }
   if ((marks ?? 0) >= 5) {
-    return "Write a detailed answer";
+    return "Write a detailed answer with all key steps";
   }
-
   return "Write your answer";
 }
 
@@ -1037,4 +1128,29 @@ function buildSubmittedAnswers(
 
 function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+}
+
+/**
+ * Parse a case-study prompt into passage + subparts.
+ * Heuristic: the passage is everything before the first subpart marker.
+ * Subpart markers: (a), (b), (i), (ii), Q1, Q2, 1., 2.
+ */
+function parseCaseStudyPrompt(prompt: string): { passage: string; subparts: string[] } {
+  const subpartRegex = /(?:^|\n)\s*(?:\([a-z]\)|\([ivx]+\)|Q\d+\.?|\d+\.)\s+/i;
+  const match = prompt.match(subpartRegex);
+
+  if (!match || match.index === undefined) {
+    return { passage: prompt, subparts: [] };
+  }
+
+  const passage = prompt.slice(0, match.index).trim();
+  const rest = prompt.slice(match.index);
+
+  // Split the rest by subpart markers
+  const subparts = rest
+    .split(/(?:^|\n)\s*(?=\([a-z]\)|\([ivx]+\)|Q\d+\.?|\d+\.)\s+/i)
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+
+  return { passage, subparts };
 }
