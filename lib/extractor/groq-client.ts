@@ -25,37 +25,46 @@ const getOpenRouterClient = () => {
   });
 };
 
-// Get the active provider client and model chain
-const getAIClientAndChain = (type: 'text' | 'vision') => {
+// Get the active provider client and model chain dynamically
+const getAIChain = (type: 'text' | 'vision'): { client: OpenAI; model: string }[] => {
   const openRouterKey = process.env.OPENROUTER_API_KEY;
   const groqKey = process.env.GROQ_API_KEY;
+  const chain: { client: OpenAI; model: string }[] = [];
 
-  if (openRouterKey && openRouterKey.trim().length > 0) {
-    const client = getOpenRouterClient();
-    const chain = type === 'vision'
-      ? [process.env.OPENROUTER_MODEL_VISION || 'google/gemma-2-9b-it:free']
-      : [
-          process.env.OPENROUTER_MODEL_TEXT || 'meta-llama/llama-3.3-70b-instruct:free',
-          'nvidia/nemotron-3-ultra-550b-a55b:free',
-          'openai/gpt-oss-120b:free',
-          'nvidia/nemotron-3-super-120b-a12b:free'
-        ];
-    return { client, chain, provider: 'openrouter' as const };
-  }
-
+  // 1. Primary: Groq (if key is set)
   if (groqKey && groqKey.trim().length > 0) {
-    const client = getGroqClient();
-    const chain = type === 'vision'
-      ? ['llama-3.2-11b-vision-preview']
-      : [
-          'llama-3.3-70b-versatile',
-          'meta-llama/llama-4-scout-17b-16e-instruct',
-          'llama-3.1-8b-instant'
-        ];
-    return { client, chain, provider: 'groq' as const };
+    const groqClient = getGroqClient();
+    if (type === 'vision') {
+      chain.push({ client: groqClient, model: 'llama-3.2-11b-vision-preview' });
+    } else {
+      chain.push({ client: groqClient, model: 'llama-3.3-70b-versatile' });
+      chain.push({ client: groqClient, model: 'llama-3.1-8b-instant' });
+    }
   }
 
-  throw new Error('Neither GROQ_API_KEY nor OPENROUTER_API_KEY environment variable is set.');
+  // 2. Fallbacks: OpenRouter (if key is set)
+  if (openRouterKey && openRouterKey.trim().length > 0) {
+    const openRouterClient = getOpenRouterClient();
+    if (type === 'vision') {
+      chain.push({
+        client: openRouterClient,
+        model: process.env.OPENROUTER_MODEL_VISION || 'google/gemma-2-9b-it:free',
+      });
+    } else {
+      if (process.env.OPENROUTER_MODEL_TEXT) {
+        chain.push({ client: openRouterClient, model: process.env.OPENROUTER_MODEL_TEXT });
+      }
+      chain.push({ client: openRouterClient, model: 'nvidia/nemotron-3-ultra-550b-a55b:free' });
+      chain.push({ client: openRouterClient, model: 'openai/gpt-oss-120b:free' });
+      chain.push({ client: openRouterClient, model: 'nvidia/nemotron-3-super-120b-a12b:free' });
+    }
+  }
+
+  if (chain.length === 0) {
+    throw new Error('Neither GROQ_API_KEY nor OPENROUTER_API_KEY environment variable is set.');
+  }
+
+  return chain;
 };
 
 /**
@@ -73,11 +82,11 @@ async function createChatCompletionWithFallback(
   type: 'text' | 'vision',
   params: Omit<OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming, 'model'>
 ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
-  const { client, chain } = getAIClientAndChain(type);
+  const chain = getAIChain(type);
   let lastError: any = null;
 
   for (let i = 0; i < chain.length; i++) {
-    const model = chain[i];
+    const { client, model } = chain[i];
     console.log(`[ai-client] Requesting completion using model: ${model} (Attempt ${i + 1}/${chain.length})`);
     try {
       const response = await client.chat.completions.create({

@@ -20,6 +20,7 @@ import type { ExtractedQuestion, ExtractionResult } from '@/lib/extractor/types'
 import { AppShell } from '@/components/app-shell';
 import { PageHeader } from '@/components/page-header';
 import { HomeDashboard, SelectedFiles } from '@/components/home-dashboard';
+import { DinoGame } from '@/components/dino-game';
 
 // ─────────────────────────────────────────────
 // TYPES
@@ -30,6 +31,7 @@ type Stage =
   | 'uploading'
   | 'extracting'
   | 'parsing'
+  | 'finishing'
   | 'done'
   | 'error';
 
@@ -169,10 +171,10 @@ export default function Home() {
 
       setState(prev => ({
         ...prev,
-        stage: 'done',
+        stage: 'finishing',
         result: { ...data, warnings },
         processingTimeMs: data.processingTimeMs ?? 0,
-        progress: '',
+        progress: 'test ready, lol!',
         progressPercent: 100,
       }));
     } catch (err: unknown) {
@@ -184,6 +186,14 @@ export default function Home() {
       }));
     }
   }, [state.files]);
+
+  const handleLoadingFinished = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      stage: 'done',
+      progress: '',
+    }));
+  }, []);
 
   const handleReset = () => {
     setState(INITIAL_STATE);
@@ -373,30 +383,48 @@ export default function Home() {
           )}
 
           {/* LOADING STATES */}
-          {(state.stage === 'extracting' || state.stage === 'parsing') && (
-            <div className="fade-in" style={{ paddingTop: 80, textAlign: 'center' }}>
-              <div style={{
-                width: 56, height: 56, border: '3px solid var(--border2)',
-                borderTopColor: 'var(--amber)', borderRadius: '50%',
-                animation: 'spin 0.8s linear infinite', margin: '0 auto 32px',
-              }} />
+          {(state.stage === 'extracting' || state.stage === 'parsing' || state.stage === 'finishing') && (
+            <div className="fade-in" style={{ paddingTop: 40, textAlign: 'center' }}>
+              {state.stage !== 'finishing' ? (
+                <div style={{
+                  width: 56, height: 56, border: '3px solid var(--border2)',
+                  borderTopColor: 'var(--amber)', borderRadius: '50%',
+                  animation: 'spin 0.8s linear infinite', margin: '0 auto 24px',
+                }} />
+              ) : (
+                <div style={{
+                  fontSize: 40, margin: '0 auto 24px', animation: 'pulse 1.5s infinite',
+                }}>
+                  ☄️
+                </div>
+              )}
               <div style={{ fontFamily: 'var(--mono)', fontSize: 13, color: 'var(--text)', letterSpacing: 1 }}>
-                {state.stage === 'extracting' ? 'EXTRACTING TEXT' : 'PARSING QUESTIONS'}
+                {state.stage === 'extracting' ? 'EXTRACTING TEXT' :
+                 state.stage === 'parsing' ? 'PARSING QUESTIONS' :
+                 'PREPARING TEST'}
               </div>
-              <div style={{ marginTop: 12, fontSize: 14, color: 'var(--muted)', maxWidth: 400, margin: '12px auto 0', lineHeight: 1.6 }}>
-                {state.progress}
+              <div style={{ marginTop: 12, fontSize: 14, color: 'var(--muted)', maxWidth: 450, margin: '12px auto 0', lineHeight: 1.6 }}>
+                {state.stage === 'finishing' ? 'test ready, lol!' : state.progress}
               </div>
 
               {/* Progress bar */}
-              <div style={{ maxWidth: 400, margin: '24px auto 0', background: 'var(--border2)', height: 6, borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ maxWidth: 400, margin: '20px auto 0', background: 'var(--border2)', height: 6, borderRadius: 3, overflow: 'hidden' }}>
                 <div style={{ width: `${state.progressPercent}%`, height: '100%', background: 'var(--amber)', transition: 'width 0.4s ease' }} />
               </div>
               <div style={{ marginTop: 8, fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--amber)', fontWeight: 600 }}>
                 {state.progressPercent}%
               </div>
 
+              {/* Chrome Dino game section */}
+              <div style={{ marginTop: 12 }}>
+                <DinoGame
+                  isFinishing={state.stage === 'finishing'}
+                  onAnimationComplete={handleLoadingFinished}
+                />
+              </div>
+
               {state.files.questionPaper && (
-                <div style={{ marginTop: 24, fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)' }}>
+                <div style={{ marginTop: 20, fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted)' }}>
                   {state.files.questionPaper.name} · {(state.files.questionPaper.size / 1024).toFixed(0)}KB
                 </div>
               )}
