@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Library, Menu, ScanText, X, ChevronLeft, ChevronRight, Settings } from "lucide-react";
+import { Library, Menu, ScanText, X, ChevronLeft, ChevronRight, Settings, Sun, Moon } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -18,6 +18,19 @@ type AppShellProps = {
 export function AppShell({ children, currentPath }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem("examiner-theme") === "dark";
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("examiner-theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("examiner-theme", "light");
+    }
+  }, [darkMode]);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -107,6 +120,28 @@ export function AppShell({ children, currentPath }: AppShellProps) {
           <div className="mt-auto pt-8 flex flex-col gap-4 w-full items-center">
             <button
               type="button"
+              onClick={() => setDarkMode(!darkMode)}
+              className={cn(
+                "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm text-white/70 hover:bg-white/10 hover:text-white transition w-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 cursor-pointer",
+                isCollapsed && "justify-center px-0 w-12 h-12 rounded-full"
+              )}
+              title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            >
+              {darkMode ? (
+                <>
+                  <Sun className="h-4 w-4 shrink-0 text-amber-400" />
+                  {!isCollapsed && <span>Light Mode</span>}
+                </>
+              ) : (
+                <>
+                  <Moon className="h-4 w-4 shrink-0" />
+                  {!isCollapsed && <span>Dark Mode</span>}
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
               onClick={handleToggleCollapse}
               className={cn(
                 "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm text-white/70 hover:bg-white/10 hover:text-white transition w-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 cursor-pointer",
@@ -187,6 +222,24 @@ export function AppShell({ children, currentPath }: AppShellProps) {
                 </Link>
               );
             })}
+
+            <button
+              type="button"
+              onClick={() => setDarkMode(!darkMode)}
+              className="flex items-center gap-3 rounded-2xl px-4 py-3 text-sm text-white/70 hover:bg-white/10 hover:text-white transition w-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 cursor-pointer mt-4"
+            >
+              {darkMode ? (
+                <>
+                  <Sun className="h-4 w-4 shrink-0 text-amber-400" />
+                  <span>Light Mode</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="h-4 w-4 shrink-0" />
+                  <span>Dark Mode</span>
+                </>
+              )}
+            </button>
           </nav>
         </aside>
 

@@ -239,42 +239,87 @@ function QuestionReviewCard({
   detail: ReturnType<typeof buildResultSummary>["questionDetails"][number];
   mistakesOnly?: boolean;
 }) {
+  const pct = detail.scorePercentage;
+  const borderColor = pct >= 80 
+    ? 'border-emerald-200 bg-emerald-50/30' 
+    : pct >= 40 
+      ? 'border-amber-200 bg-amber-50/20' 
+      : 'border-red-200 bg-red-50/20';
+
   return (
-    <div className="rounded-[2rem] border border-slate-200 bg-white p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-4 mb-4">
         <div>
-          <p className="text-sm font-medium text-ink">Question {detail.questionNumber}</p>
-          <p className="mt-1 text-sm text-slate-500">{detail.section}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-ink">
-            {detail.marksAwarded}/{detail.maxMarks}
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-800 text-xs font-semibold rounded-full mb-1">
+            Question {detail.questionNumber}
           </span>
-          <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
-            {detail.scorePercentage}%
+          <p className="text-sm font-semibold text-slate-500">{detail.section}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="text-right">
+            <span className="text-sm font-bold text-ink">Marks: {detail.marksAwarded} / {detail.maxMarks}</span>
+            <div className="w-24 bg-slate-100 h-1.5 rounded-full overflow-hidden mt-1">
+              <div className={`h-1.5 rounded-full ${pct >= 80 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${pct}%` }} />
+            </div>
+          </div>
+          <span className={`px-3 py-1 text-xs font-bold rounded-full ${
+            pct >= 80 ? 'bg-emerald-100 text-emerald-800' : pct >= 40 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
+          }`}>
+            {pct}%
           </span>
         </div>
       </div>
 
-      <div className="mt-5 space-y-4">
-        {!mistakesOnly ? (
-          <>
-            <ReviewBlock title="Question" content={detail.questionText || "Question text unavailable."} />
-            <ReviewBlock title="Student answer" content={detail.studentAnswer || "No answer provided."} />
-            <ReviewBlock title="Correct answer" content={detail.correctAnswer || "No reference answer available."} />
-          </>
-        ) : null}
+      <div className="space-y-4">
+        {!mistakesOnly && (
+          <div className="rounded-[1.5rem] bg-slate-50 p-4 border border-slate-100">
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Question Prompt</p>
+            <p className="text-sm font-medium text-ink leading-relaxed whitespace-pre-line">{detail.questionText || "Question text unavailable."}</p>
+          </div>
+        )}
 
-        <ReviewBlock title="Feedback" content={detail.feedback} />
+        <div className={`rounded-[1.5rem] p-4 border ${borderColor}`}>
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Student Answer</p>
+          <p className="text-sm text-ink leading-relaxed whitespace-pre-line">{detail.studentAnswer || "No answer provided."}</p>
+        </div>
 
-        {detail.refinedAnswer ? (
-          <ReviewBlock title="AI Refined Answer (Suggested Solution)" content={detail.refinedAnswer} />
-        ) : null}
+        {detail.refinedAnswer && (
+          <div className="rounded-[1.5rem] bg-amber-50/50 border border-amber-200/60 p-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-amber-700 mb-1">AI Refined Answer (Model Answer)</p>
+            <p className="text-sm text-ink leading-relaxed whitespace-pre-line">{detail.refinedAnswer}</p>
+          </div>
+        )}
 
-        {detail.strengths.length > 0 && !mistakesOnly ? <ListBlock title="Strengths" items={detail.strengths} /> : null}
-        {detail.missingPoints.length > 0 ? <ListBlock title="Weak areas" items={detail.missingPoints} /> : null}
-        {detail.mistakes.length > 0 ? <ListBlock title="Mistakes" items={detail.mistakes} /> : null}
-        {detail.improvements.length > 0 ? <ListBlock title="Improvement tips" items={detail.improvements} /> : null}
+        <div className="grid gap-4 md:grid-cols-2">
+          {detail.feedback && (
+            <div className="rounded-[1.5rem] bg-slate-50 p-4 border border-slate-100 md:col-span-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Feedback</p>
+              <p className="text-sm text-slate-700 leading-relaxed">{detail.feedback}</p>
+            </div>
+          )}
+
+          {detail.strengths.length > 0 && !mistakesOnly && (
+            <div className="rounded-[1.5rem] bg-emerald-50/20 border border-emerald-100 p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-emerald-700 mb-2">Strengths</p>
+              <ul className="list-disc pl-4 text-xs text-emerald-800 space-y-1">
+                {detail.strengths.map((item, idx) => (
+                  <li key={idx} className="leading-relaxed">{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {detail.missingPoints.length > 0 && (
+            <div className="rounded-[1.5rem] bg-rose-50/20 border border-rose-100 p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-rose-700 mb-2">Missing Points</p>
+              <ul className="list-disc pl-4 text-xs text-rose-800 space-y-1">
+                {detail.missingPoints.map((item, idx) => (
+                  <li key={idx} className="leading-relaxed">{item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -199,6 +199,38 @@ export function TestExperience({ paper, onSubmit }: TestExperienceProps) {
   }, 0);
 
   useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (
+        e.target instanceof HTMLInputElement || 
+        e.target instanceof HTMLTextAreaElement || 
+        e.target instanceof HTMLSelectElement ||
+        (e.target as HTMLElement).isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.key === 'ArrowRight') {
+        moveQuestion('next');
+      } else if (e.key === 'ArrowLeft') {
+        moveQuestion('previous');
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        startTest();
+      } else if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        setShowSubmitModal(true);
+      } else if (currentQuestion?.options && /^[1-4]$/.test(e.key)) {
+        const idx = parseInt(e.key) - 1;
+        if (idx < currentQuestion.options.length) {
+          updateAnswer(String.fromCharCode(65 + idx)); // A, B, C, D
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [currentQuestion, moveQuestion, startTest]);
+
+  useEffect(() => {
     if (!currentQuestion) {
       return;
     }
@@ -507,6 +539,31 @@ export function TestExperience({ paper, onSubmit }: TestExperienceProps) {
                 <p className="mt-1 text-sm leading-6 text-slate-500">
                   This attempt is using the real extraction response from your uploaded PDF.
                 </p>
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Keyboard shortcuts" description="Navigate the test experience like a pro.">
+            <div className="space-y-2 text-xs text-slate-600">
+              <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                <span>Next Question</span>
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-mono">ArrowRight</kbd>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                <span>Previous Question</span>
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-mono">ArrowLeft</kbd>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                <span>Pause / Resume Timer</span>
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-mono">Space</kbd>
+              </div>
+              <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                <span>Submit Exam</span>
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-mono">Ctrl + Enter</kbd>
+              </div>
+              <div className="flex justify-between items-center py-1">
+                <span>Select MCQ Option</span>
+                <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-mono">1 - 4</kbd>
               </div>
             </div>
           </SectionCard>
