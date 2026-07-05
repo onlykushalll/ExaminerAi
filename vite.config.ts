@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => {
         '/api/ollama': {
           target: 'http://localhost:11434',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/ollama/, '/api/generate'),
+          rewrite: (path) => path.replace(/^\/api\/ollama/, ''),
         },
       },
     },

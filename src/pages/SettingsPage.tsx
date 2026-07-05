@@ -59,7 +59,7 @@ export default function SettingsPage() {
         }
       } else {
         // Fallback for web dev proxy
-        const res = await fetch('/api/ollama/tags');
+        const res = await fetch('/api/ollama/api/tags');
         if (res.ok) {
           setOllamaConnected(true);
           const data = await res.json();
@@ -79,13 +79,70 @@ export default function SettingsPage() {
 
   const startModelDownload = async () => {
     setDownloadProgress(0);
-    // Simulate model pulling progression
-    for (let p = 0; p <= 100; p += 10) {
-      setDownloadProgress(p);
-      await new Promise(r => setTimeout(r, 200));
+    try {
+      if (isTauri()) {
+        const { invoke } = await import('@tauri-apps/api/core');
+        const { listen } = await import('@tauri-apps/api/event');
+        const unlisten = await listen<number>('ollama-pull-progress', (event) => {
+          setDownloadProgress(event.payload);
+        });
+        try {
+          await invoke('ollama_pull_model', { model: 'glm-ocr:latest', url: ollamaUrl });
+          setDownloadProgress(100);
+          setTimeout(() => setDownloadProgress(null), 2000);
+        } finally {
+          unlisten();
+        }
+      } else {
+        const response = await fetch('/api/ollama/api/pull', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: 'glm-ocr:latest', stream: true }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Ollama pull failed: ${response.status}`);
+        }
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('No response body');
+
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const data = JSON.parse(line);
+              if (data.total && data.completed) {
+                const pct = Math.round((data.completed / data.total) * 100);
+                setDownloadProgress(pct);
+              }
+              if (data.status === 'success') {
+                setDownloadProgress(100);
+              }
+            } catch {
+              // Skip
+            }
+          }
+        }
+        setDownloadProgress(null);
+      }
+    } catch (err: any) {
+      console.error('Model download failed:', err);
+      setDownloadProgress(null);
+      setStatusMessage('Failed to download GLM-OCR: ' + err.message);
+      setTimeout(() => setStatusMessage(''), 5000);
     }
-    setDownloadProgress(null);
-    // Refresh models list
+
     checkOllamaStatus();
   };
 
@@ -243,10 +300,25 @@ export default function SettingsPage() {
                   ) : (
                     <>
                       <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="text-sm font-bold text-red-950">Ollama Offline</span>
+                      <div className="flex-1">
+                        <span className="text-sm font-bold text-red-950">Ollama Not Running</span>
                         <p className="text-xs text-red-800 mt-1 leading-relaxed">
-                          Could not reach Ollama at {ollamaUrl}. Ensure Ollama is running locally on your device (<code>ollama serve</code>).
+                          To enable offline scanned-PDF OCR, you need Ollama + the GLM-OCR model.
+                        </p>
+
+                        <div className="mt-3 space-y-2">
+                          <p className="text-xs font-semibold text-red-900">Quick setup:</p>
+                          <div className="rounded-lg bg-red-950/5 border border-red-250 p-3 font-mono text-[11px] text-red-900 leading-relaxed">
+                            <p># 1. Install Ollama from https://ollama.ai</p>
+                            <p># 2. Start the Ollama server:</p>
+                            <p className="font-bold select-all">ollama serve</p>
+                            <p className="mt-1"># 3. Come back here and click "Test Endpoint"</p>
+                            <p># 4. Then click "Pull GLM-OCR Model" to download (1.4GB)</p>
+                          </div>
+                        </div>
+
+                        <p className="text-[11px] text-red-700 mt-2 italic leading-normal">
+                          Note: GLM-OCR is optional. The app works without it — scanned PDFs will use Groq Vision OCR instead (uses API quota).
                         </p>
                       </div>
                     </>

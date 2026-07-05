@@ -1,6 +1,6 @@
 mod commands;
 
-use commands::ollama::{ollama_generate, ollama_health, ollama_list_models};
+use commands::ollama::{ollama_generate, ollama_health, ollama_list_models, ollama_pull_model};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -18,7 +18,8 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       ollama_generate,
       ollama_health,
-      ollama_list_models
+      ollama_list_models,
+      ollama_pull_model
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

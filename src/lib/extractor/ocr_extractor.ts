@@ -29,7 +29,7 @@ const getOllamaModel = () => {
 /** Dynamically route through local proxy to bypass CORS in browser */
 const getOllamaEndpoint = () => {
   const isBrowser = typeof window !== 'undefined';
-  return isBrowser ? "/api/ollama" : `${getOllamaUrl()}/api/generate`;
+  return isBrowser ? "/api/ollama/api/generate" : `${getOllamaUrl()}/api/generate`;
 };
 
 /**

@@ -84,3 +84,61 @@ pub async fn ollama_list_models(url: Option<String>) -> Result<Vec<String>, Stri
         .unwrap_or_default();
     Ok(models)
 }
+
+use tauri::{Emitter, AppHandle};
+
+#[tauri::command]
+pub async fn ollama_pull_model(
+    app: AppHandle,
+    model: String,
+    url: Option<String>,
+) -> Result<(), String> {
+    let base_url = url.unwrap_or_else(|| "http://localhost:11434".to_string());
+    let endpoint = format!("{}/api/pull", base_url.trim_end_matches('/'));
+
+    let client = reqwest::Client::new();
+    let response = client
+        .post(&endpoint)
+        .json(&serde_json::json!({ "name": model, "stream": true }))
+        .send()
+        .await
+        .map_err(|e| format!("Pull request failed: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Ollama returned error: {}", response.status()));
+    }
+
+    // Stream the response and emit progress events
+    use futures_util::StreamExt;
+    let mut stream = response.bytes_stream();
+    let mut buffer = String::new();
+
+    while let Some(chunk_result) = stream.next().await {
+        let chunk = chunk_result.map_err(|e| e.to_string())?;
+        buffer.push_str(&String::from_utf8_lossy(&chunk));
+
+        let lines: Vec<&str> = buffer.split('\n').collect();
+        if lines.len() > 1 {
+            buffer = lines.last().unwrap().to_string();
+            for line in &lines[..lines.len() - 1] {
+                if line.trim().is_empty() { continue; }
+                if let Ok(data) = serde_json::from_str::<serde_json::Value>(line) {
+                    if let (Some(total), Some(completed)) = (
+                        data["total"].as_u64(),
+                        data["completed"].as_u64(),
+                    ) {
+                        if total > 0 {
+                            let pct = ((completed as f64 / total as f64) * 100.0) as u8;
+                            let _ = app.emit("ollama-pull-progress", pct);
+                        }
+                    }
+                    if data["status"].as_str() == Some("success") {
+                        let _ = app.emit("ollama-pull-progress", 100u8);
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
