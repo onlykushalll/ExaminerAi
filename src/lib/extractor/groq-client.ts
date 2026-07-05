@@ -204,6 +204,88 @@ function detectSolutionsDeterministically(text: string, answerKeyText?: string):
   return matchCount >= 2;
 }
 
+function detectSectionsDeterministically(text: string): string[] {
+  const sectionMarkers = [
+    /^\s*(section\s+[a-z0-9])\s*[:\-\n]/im,
+    /^\s*(part\s+[ivx0-9]+)\s*[:\-\n]/im,
+    /^\s*(physics|chemistry|biology|mathematics|english|hindi|science|social\s+science)\s*[:\-\n]/im,
+    /^\s*(unit\s+\d+)\s*[:\-\n]/im,
+  ];
+  const found = new Set<string>();
+  for (const marker of sectionMarkers) {
+    const matches = text.match(new RegExp(marker.source, 'gmi'));
+    if (matches) {
+      for (const m of matches) {
+        const cleaned = m.trim().replace(/[:\-\n]/g, '').trim();
+        const capitalized = cleaned.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+        found.add(capitalized);
+      }
+    }
+  }
+  return Array.from(found);
+}
+
+function validateAndRepairQuestions(questions: any[]): any[] {
+  const repaired = [];
+
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i];
+
+    // Skip empty questions
+    if (!q.question || q.question.trim().length < 5) continue;
+
+    // Ensure unique sequential IDs
+    const id = String(i + 1);
+
+    // Validate type
+    const validTypes = ['mcq', 'subjective', 'assertion_reason', 'case_study'];
+    const type = validTypes.includes(q.type) ? q.type : 'subjective';
+
+    // Validate marks
+    const marks = (typeof q.marks === 'number' && q.marks > 0 && q.marks <= 20) ? q.marks : undefined;
+
+    // Validate options (only for MCQ)
+    let options = q.options;
+    if (type !== 'mcq' && type !== 'assertion_reason') {
+      options = undefined;
+    } else if (options && !Array.isArray(options)) {
+      options = undefined;
+    } else if (options && options.length === 0) {
+      options = undefined;
+    }
+
+    // Validate confidence
+    const confidence = (typeof q.confidence === 'number' && q.confidence >= 0 && q.confidence <= 1)
+      ? q.confidence : 0.7;
+
+    repaired.push({
+      ...q,
+      id,
+      type,
+      marks,
+      options,
+      confidence,
+    });
+  }
+
+  return repaired;
+}
+
+function estimateExpectedQuestionCount(text: string): number {
+  const patterns = [
+    /\bQ\.?\s*\d+/gi,
+    /\b\d+\.\s+[A-Z]/g,  // "1. What..."
+    /\b\d+\)\s+[A-Z]/g,  // "1) What..."
+    /\b\(\d+\)/g,         // "(1)"
+  ];
+  let max = 0;
+  for (const p of patterns) {
+    const matches = text.match(p);
+    if (matches) max = Math.max(max, matches.length);
+  }
+  return max;
+}
+
 /**
  * 3-PASS AI QUESTION EXTRACTION ENGINE
  *
@@ -303,11 +385,16 @@ Return ONLY a valid JSON object (no markdown, no code blocks):
 5. Preserve mathematical notation in plain text (e.g., "I = V/R", "H = I2Rt").
 6. The response must be valid JSON only. No markdown code blocks.`;
 
+  const detectedSections = detectSectionsDeterministically(text);
+  const sectionHint = detectedSections.length > 0
+    ? `\n\n[DETECTED SECTIONS: ${detectedSections.join(', ')} — use these exact strings as the "section" field values for the extracted questions]`
+    : '';
+
   const userContent = `Here is the Question Paper text (page breaks marked with \\f):\n${text}\n\n` +
     (answerKeyText && answerKeyText.trim()
       ? `Here is the corresponding Answer Key text:\n${answerKeyText}\n\n`
       : `No separate answer key was provided.\n\n`) +
-    `Process this exam paper through your 3-pass pipeline and return the structured JSON.`;
+    `Process this exam paper through your 3-pass pipeline and return the structured JSON.${sectionHint}`;
 
   const response = await createChatCompletionWithFallback('text', {
     messages: [
@@ -336,19 +423,18 @@ Return ONLY a valid JSON object (no markdown, no code blocks):
 
     const parsed = JSON.parse(cleaned);
 
-    const questions = (parsed.questions || []).map((q: any, i: number) => ({
-      ...q,
-      id: q.id || String(i + 1),
-      confidence: typeof q.confidence === 'number' ? q.confidence : 0.7,
-      options: Array.isArray(q.options) ? q.options : undefined,
-      marks: typeof q.marks === 'number' ? q.marks : undefined,
-    }));
+    const questions = validateAndRepairQuestions(parsed.questions || []);
 
     const deterministicHasSolutions = detectSolutionsDeterministically(text, answerKeyText);
     const warnings: string[] = Array.isArray(parsed.warnings) ? parsed.warnings : [];
 
     if (!parsed.hasSolutions && !deterministicHasSolutions && !answerKeyText) {
       warnings.push('No answer key or solutions detected in the document. Reference answers will be dynamically generated during evaluation.');
+    }
+
+    const estimated = estimateExpectedQuestionCount(text);
+    if (estimated > questions.length * 1.5) {
+      warnings.push(`Only ${questions.length} questions extracted, but document appears to have ~${estimated}. Some questions may have been missed. Try a different model in Settings if quality is poor.`);
     }
 
     return {
