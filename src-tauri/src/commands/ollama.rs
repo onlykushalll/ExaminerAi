@@ -54,3 +54,33 @@ pub async fn ollama_generate(
         .response
         .ok_or_else(|| "No response field in Ollama output".to_string())
 }
+
+#[tauri::command]
+pub async fn ollama_health(url: Option<String>) -> Result<bool, String> {
+    let base_url = url.unwrap_or_else(|| "http://localhost:11434".to_string());
+    let client = reqwest::Client::new();
+    match client.get(format!("{}/api/tags", base_url.trim_end_matches('/')))
+        .timeout(std::time::Duration::from_secs(2))
+        .send()
+        .await {
+        Ok(resp) => Ok(resp.status().is_success()),
+        Err(_) => Ok(false),
+    }
+}
+
+#[tauri::command]
+pub async fn ollama_list_models(url: Option<String>) -> Result<Vec<String>, String> {
+    let base_url = url.unwrap_or_else(|| "http://localhost:11434".to_string());
+    let client = reqwest::Client::new();
+    let resp = client.get(format!("{}/api/tags", base_url.trim_end_matches('/')))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    let models = body["models"].as_array()
+        .map(|arr| arr.iter()
+            .filter_map(|m| m["name"].as_str().map(|s| s.to_string()))
+            .collect())
+        .unwrap_or_default();
+    Ok(models)
+}
