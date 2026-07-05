@@ -13,11 +13,88 @@ const getGroqClient = () => {
   });
 };
 
+// Initialize OpenAI client pointing to OpenRouter's endpoint
+const getOpenRouterClient = () => {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    throw new Error('OPENROUTER_API_KEY environment variable is not set.');
+  }
+  return new OpenAI({
+    apiKey,
+    baseURL: 'https://openrouter.ai/api/v1',
+  });
+};
+
+// Get the active provider client and model chain
+const getAIClientAndChain = (type: 'text' | 'vision') => {
+  const openRouterKey = process.env.OPENROUTER_API_KEY;
+  const groqKey = process.env.GROQ_API_KEY;
+
+  if (openRouterKey && openRouterKey.trim().length > 0) {
+    const client = getOpenRouterClient();
+    const chain = type === 'vision'
+      ? [process.env.OPENROUTER_MODEL_VISION || 'google/gemma-2-9b-it:free']
+      : [
+          process.env.OPENROUTER_MODEL_TEXT || 'meta-llama/llama-3.3-70b-instruct:free',
+          'google/gemma-4-31b-it:free',
+          'openai/gpt-oss-20b:free'
+        ];
+    return { client, chain, provider: 'openrouter' as const };
+  }
+
+  if (groqKey && groqKey.trim().length > 0) {
+    const client = getGroqClient();
+    const chain = type === 'vision'
+      ? ['llama-3.2-11b-vision-preview']
+      : [
+          'llama-3.3-70b-versatile',
+          'meta-llama/llama-4-scout-17b-16e-instruct',
+          'llama-3.1-8b-instant'
+        ];
+    return { client, chain, provider: 'groq' as const };
+  }
+
+  throw new Error('Neither GROQ_API_KEY nor OPENROUTER_API_KEY environment variable is set.');
+};
+
 /**
- * Checks if Groq AI parsing is configured and enabled.
+ * Checks if Groq or OpenRouter AI parsing is configured and enabled.
  */
 export function isGroqEnabled(): boolean {
-  return typeof process.env.GROQ_API_KEY === 'string' && process.env.GROQ_API_KEY.length > 0;
+  return (typeof process.env.GROQ_API_KEY === 'string' && process.env.GROQ_API_KEY.length > 0) ||
+         (typeof process.env.OPENROUTER_API_KEY === 'string' && process.env.OPENROUTER_API_KEY.length > 0);
+}
+
+/**
+ * Helper to run completions with fallback support
+ */
+async function createChatCompletionWithFallback(
+  type: 'text' | 'vision',
+  params: Omit<OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming, 'model'>
+): Promise<OpenAI.Chat.Completions.ChatCompletion> {
+  const { client, chain } = getAIClientAndChain(type);
+  let lastError: any = null;
+
+  for (let i = 0; i < chain.length; i++) {
+    const model = chain[i];
+    console.log(`[ai-client] Requesting completion using model: ${model} (Attempt ${i + 1}/${chain.length})`);
+    try {
+      const response = await client.chat.completions.create({
+        ...params,
+        model,
+      });
+      return response;
+    } catch (err: any) {
+      console.warn(`[ai-client] Model ${model} failed:`, err?.message || err);
+      lastError = err;
+      if (i < chain.length - 1) {
+        console.log(`[ai-client] Sleeping for 1s before trying fallback model...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+  }
+
+  throw lastError || new Error('All fallback models failed.');
 }
 
 /**
@@ -25,12 +102,9 @@ export function isGroqEnabled(): boolean {
  * Used as last-resort OCR fallback when local GLM-OCR is offline.
  */
 export async function ocrPageWithGroqVision(base64Image: string): Promise<string> {
-  const client = getGroqClient();
-
   const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, '');
 
-  const response = await client.chat.completions.create({
-    model: 'llama-3.2-11b-vision-preview',
+  const response = await createChatCompletionWithFallback('vision', {
     messages: [
       {
         role: 'user',
@@ -68,8 +142,6 @@ export async function ocrPageWithGroqVision(base64Image: string): Promise<string
  * NO chunking. NO truncation. Sends the full document text in one API call.
  */
 export async function parseQuestionsWithGroq(text: string, answerKeyText?: string): Promise<ExtractionResult> {
-  const client = getGroqClient();
-
   const systemPrompt = `You are a professional exam paper document analyst. You process exam papers in 3 strict passes.
 
 === PASS 1: DOCUMENT LAYOUT DETECTION ===
@@ -159,15 +231,13 @@ Return ONLY a valid JSON object (no markdown, no code blocks):
       : `No separate answer key was provided.\n\n`) +
     `Process this exam paper through your 3-pass pipeline and return the structured JSON.`;
 
-  const response = await client.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+  const response = await createChatCompletionWithFallback('text', {
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userContent },
     ],
     response_format: { type: 'json_object' },
     temperature: 0.1,
-    max_tokens: 32768,
   });
 
   const content = response.choices[0]?.message?.content || '{}';
@@ -236,8 +306,6 @@ export async function evaluateAnswerWithGroq(
   strengths: string[];
   refinedAnswer: string;
 }> {
-  const client = getGroqClient();
-
   const typeSpecific = questionType === 'mcq'
     ? 'This is an MCQ. Award full marks if the correct option is selected, zero otherwise.'
     : questionType === 'assertion_reason'
@@ -289,8 +357,7 @@ Return ONLY a valid JSON object:
 
 Output valid JSON only. No markdown.`;
 
-  const response = await client.chat.completions.create({
-    model: 'llama-3.3-70b-versatile',
+  const response = await createChatCompletionWithFallback('text', {
     messages: [
       { role: 'user', content: prompt },
     ],
