@@ -41,7 +41,7 @@ export default function TestPage() {
   const handleSubmit = async (payload: any) => {
     setIsEvaluating(true);
     setEvaluatingProgressPercent(5);
-    setEvaluatingProgressMessage('Preparing answers for AI evaluation...');
+    setEvaluatingProgressMessage('Preparing answers for Board evaluation...');
 
     const id = Math.random().toString(36).substring(7);
     const answersList = payload.submittedAnswers || [];
@@ -113,7 +113,7 @@ export default function TestPage() {
         submissionId: id,
         status: 'completed' as const,
         evaluationMode: 'ai-generated-answers' as const,
-        sourceLabel: 'Groq AI Evaluator',
+        sourceLabel: 'Groq Board Evaluator',
         totalScore: evaluations.reduce((sum, item) => sum + item.marksAwarded, 0),
         totalMarks: evaluations.reduce((sum, item) => sum + item.maxMarks, 0),
         evaluations,
@@ -161,7 +161,7 @@ export default function TestPage() {
         <div className="flex min-h-[60vh] items-center justify-center bg-mist text-ink p-8">
           <div className="w-full max-w-md text-center bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-accent mx-auto mb-6" />
-            <h2 className="font-serif text-2xl font-bold mb-2">AI Answer Evaluation</h2>
+            <h2 className="font-serif text-2xl font-bold mb-2">CBSE Board Evaluation</h2>
             <p className="text-sm text-slate-500 mb-6">{evaluatingProgressMessage}</p>
             
             {/* Progress Bar */}

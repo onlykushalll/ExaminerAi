@@ -628,8 +628,9 @@ export function TestExperience({ paper, onSubmit }: TestExperienceProps) {
                       disabled={evaluatingQuestionId === currentQuestion.id}
                       onClick={() => void evaluateCurrentAnswer("ai-generated-answer")}
                       className="rounded-full bg-ink px-4 py-3 text-sm text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      style={{ color: '#ffffff' }}
                     >
-                      Use AI-generated answer
+                      Use suggested reference answer
                     </button>
                     <button
                       type="button"
@@ -637,7 +638,7 @@ export function TestExperience({ paper, onSubmit }: TestExperienceProps) {
                       onClick={() => void evaluateCurrentAnswer("ai-assist")}
                       className="rounded-full bg-orange-100 px-4 py-3 text-sm text-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      AI assist mode
+                      Co-pilot assist mode
                     </button>
                   </div>
                   <div className="mt-4">
@@ -992,7 +993,7 @@ function getDisplayedPercentage(
 
 function formatEvaluationMode(mode: SingleAnswerEvaluationMode) {
   if (mode === "ai-generated-answer") {
-    return "AI-generated answer";
+    return "Suggested reference answer";
   }
 
   if (mode === "manual-input") {
@@ -1000,7 +1001,7 @@ function formatEvaluationMode(mode: SingleAnswerEvaluationMode) {
   }
 
   if (mode === "ai-assist") {
-    return "AI assist";
+    return "Co-pilot assist";
   }
 
   return "Reference answer";

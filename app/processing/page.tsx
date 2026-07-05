@@ -7,7 +7,7 @@ import { SectionCard } from "@/components/section-card";
 
 const items = [
   { title: "Matching answers to key", icon: FileSearch2 },
-  { title: "Running rubric-based AI review", icon: Brain },
+  { title: "Running rubric-based Board review", icon: Brain },
   { title: "Generating strengths and gaps", icon: Sparkles }
 ];
 

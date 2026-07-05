@@ -282,7 +282,7 @@ Return ONLY a valid JSON object (no markdown, no code blocks):
     const warnings: string[] = Array.isArray(parsed.warnings) ? parsed.warnings : [];
 
     if (!parsed.hasSolutions && !answerKeyText) {
-      warnings.push('No answer key or solutions detected in the document. Model answers will be AI-generated during evaluation.');
+      warnings.push('No answer key or solutions detected in the document. Reference answers will be dynamically generated during evaluation.');
     }
 
     return {

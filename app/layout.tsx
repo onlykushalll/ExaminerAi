@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Examiner AI — Question Extraction Engine',
-  description: 'AI-powered PDF exam paper question extraction. Detects MCQ, Subjective, and Assertion-Reason questions with high accuracy.',
-  keywords: ['exam', 'question extraction', 'PDF', 'MCQ', 'AI', 'education'],
+  title: 'Examiner — Question Extraction Engine',
+  description: 'Automated PDF exam paper question extraction. Detects MCQ, Subjective, and Assertion-Reason questions with high accuracy.',
+  keywords: ['exam', 'question extraction', 'PDF', 'MCQ', 'education'],
 };
 
 export default function RootLayout({

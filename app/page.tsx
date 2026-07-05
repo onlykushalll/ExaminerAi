@@ -139,7 +139,7 @@ export default function Home() {
         extractedText: qpExtraction.text,
         answerKeyText: akText,
         progressPercent: 85,
-        progress: 'AI parsing questions with 3-pass engine...',
+        progress: 'Structuring questions with 3-pass engine...',
       }));
 
       // ── Step 2: Parse questions (server API) ────────────────────
@@ -492,7 +492,7 @@ export default function Home() {
                     background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.2)',
                     padding: '6px 12px', borderRadius: 20,
                   }}>
-                    ⚠ No Solutions — AI Will Generate
+                    ⚠ No Solutions — Dynamic Generation
                   </div>
                 )}
 

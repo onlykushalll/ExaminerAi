@@ -34,7 +34,7 @@ export function TestTimer({
       <p className="text-sm font-medium text-orange-700">Time remaining</p>
       <p className="mt-2 text-4xl font-bold tracking-tight text-ink">{formatDuration(timeRemaining)}</p>
       <p className="mt-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
-        {hasDetectedDuration ? "AI Detected" : "Customly Durated"}
+        {hasDetectedDuration ? "Auto Detected" : "Customly Durated"}
       </p>
 
       {!hasDetectedDuration ? (

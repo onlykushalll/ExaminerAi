@@ -126,7 +126,7 @@ export function AppShell({ children, currentPath }: AppShellProps) {
             </button>
             
             <p className={cn("text-xs text-white/40 text-center transition-all duration-300", isCollapsed ? "opacity-0 h-0 overflow-hidden" : "opacity-100")}>
-              v3.1 · AI-powered
+              v3.1 · Core Engine
             </p>
           </div>
         </aside>
