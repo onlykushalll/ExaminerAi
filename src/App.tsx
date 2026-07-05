@@ -13,11 +13,21 @@ export default function App() {
 
   useEffect(() => {
     async function initKeysAndOnboarding() {
-      // Sync secure keys from Tauri Store
-      const groqKey = await secureGet('GROQ_API_KEY');
-      const openRouterKey = await secureGet('OPENROUTER_API_KEY');
+      // Injected from .env via vite define config
+      const fallbackGroq = (process.env as any).GROQ_API_KEY || "";
+      const fallbackOpenRouter = (process.env as any).OPENROUTER_API_KEY || "";
+
+      // Sync secure keys from Tauri Store or fallback to injected environment variables
+      const groqKey = await secureGet('GROQ_API_KEY') || fallbackGroq;
+      const openRouterKey = await secureGet('OPENROUTER_API_KEY') || fallbackOpenRouter;
+
       if (groqKey) localStorage.setItem('GROQ_API_KEY', groqKey);
       if (openRouterKey) localStorage.setItem('OPENROUTER_API_KEY', openRouterKey);
+
+      // Auto-set onboarding complete if we have at least one key configured
+      if (groqKey || openRouterKey) {
+        localStorage.setItem('onboarding-complete', 'true');
+      }
 
       // Onboarding check
       const onboardingComplete = localStorage.getItem('onboarding-complete');
