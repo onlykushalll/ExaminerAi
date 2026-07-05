@@ -48,17 +48,36 @@ To bridge the gap during OCR processing and AI question parsing, Examiner.AI fea
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Getting Started & Installation
 
-### 1. Prerequisites
+### 📦 Desktop App Installation (Windows)
+
+Because Windows Smart App Control (SAC) and SmartScreen block unsigned applications, the desktop app installer is signed using a **self-signed certificate** generated automatically during our GitHub Actions CI build process.
+
+To run the desktop app without security warnings, you must import the certificate to your local certificate store once:
+
+1. Download the latest installer package from **GitHub Releases** (contains the `.exe` installer and `ExaminerAI-SelfSigned.cer` certificate).
+2. Extract the files.
+3. Right-click the `ExaminerAI-SelfSigned.cer` certificate file and choose **Install Certificate**.
+4. Choose **Local Machine** (requires administrator privileges) or **Current User**, and click Next.
+5. Choose **Place all certificates in the following store** and click **Browse**.
+6. Select **Trusted Root Certification Authorities** and click OK.
+7. Click Next and then **Finish**.
+8. Double-click the `ExaminerAI-Setup-0.1.0.exe` installer — it will install and run smoothly with zero terminal or security warnings!
+
+---
+
+### 🌐 Web Mode Setup (Local Development)
+
+#### 1. Prerequisites
 * **Node.js**: Ensure you have Node.js 18+ installed.
-* **Ollama (Required for scanned PDF/Image OCR)**:
-  Download and install Ollama, then pull the GLM-OCR model:
+* **Ollama (Optional - for offline scanned PDF/Image OCR)**:
+  Download and install Ollama, then run/pull the GLM-OCR model:
   ```bash
   ollama run glm-ocr:latest
   ```
 
-### 2. Environment Configuration
+#### 2. Environment Configuration
 Create a `.env` file in the root directory:
 ```env
 # Groq API Key (Required for primary AI parsing & grading)
@@ -66,21 +85,17 @@ GROQ_API_KEY=gsk_your_actual_groq_api_key_here
 
 # OpenRouter API Key (Fallback client key)
 OPENROUTER_API_KEY=your_openrouter_api_key_here
-
-# Optional: Override local Ollama endpoint (Defaults to http://localhost:11434)
-NEXT_PUBLIC_OLLAMA_URL=http://localhost:11434
-NEXT_PUBLIC_OLLAMA_OCR_MODEL=glm-ocr:latest
 ```
 
-### 3. Installation & Development Running
+#### 3. Installation & Run
 ```bash
 # Install dependencies
 npm install
 
-# Run the local development server (launches on Port 3001)
+# Run the local development server (launches on Port 5173)
 npm run dev
 ```
-Open [http://localhost:3001](http://localhost:3001) to run the interface.
+Open [http://localhost:5173](http://localhost:5173) to view the web app.
 
 ---
 
