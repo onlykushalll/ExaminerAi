@@ -12,7 +12,7 @@
 
 import type { TextExtractionResult, InputFileType, TextExtractionOptions } from './types';
 import { extractTextFromPDF, isPDFFile, isImageBasedPDF } from './pdf-extractor';
-import { extractTextWithGLMOCR } from './ocr_extractor';
+import { extractTextWithGLMOCR, extractPageImagesFromPDF, fileToBase64 } from './ocr_extractor';
 
 // ─────────────────────────────────────────────
 // FILE TYPE DETECTION
@@ -96,7 +96,7 @@ async function extractFromPDF(
     if (isImageBasedPDF(result.text)) {
       warnings.push(
         'This PDF appears to be image-based (scanned). ' +
-        'Falling back to GLM-OCR page-by-page extraction...'
+        'Attempting local GLM-OCR extraction...'
       );
       try {
         const ocrText = await extractTextWithGLMOCR(file, options.onProgress);
@@ -107,7 +107,19 @@ async function extractFromPDF(
           warnings,
         };
       } catch (ocrErr: any) {
-        warnings.push(`GLM-OCR extraction failed: ${ocrErr.message}. Returning raw text.`);
+        warnings.push(`Local GLM-OCR not available (${ocrErr.message}). Extracting page images for Cloud Vision OCR...`);
+        try {
+          const pageImages = await extractPageImagesFromPDF(file, options.onProgress);
+          return {
+            text: '',
+            pageImages,
+            fileType: 'pdf',
+            pageCount: result.pageCount,
+            warnings,
+          };
+        } catch (imgErr: any) {
+          warnings.push(`Failed to extract page images: ${imgErr.message}. Falling back to standard text extraction.`);
+        }
       }
     }
 
@@ -186,8 +198,18 @@ async function extractFromImage(
       };
     }
   } catch (err: any) {
-    warnings.push(`GLM-OCR failed (${err.message}). Falling back to client-side Tesseract.js.`);
-    console.warn("GLM-OCR failed or is offline. Falling back to client-side Tesseract.js.", err);
+    warnings.push(`Local GLM-OCR not available (${err.message}). Capturing image for Cloud Vision OCR...`);
+    try {
+      const base64 = await fileToBase64(file);
+      return {
+        text: '',
+        pageImages: [base64],
+        fileType: 'image',
+        warnings,
+      };
+    } catch (base64Err: any) {
+      warnings.push(`Failed to convert image to base64: ${base64Err.message}`);
+    }
   }
 
   // Check if tesseract.js is available

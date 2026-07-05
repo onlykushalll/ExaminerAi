@@ -109,8 +109,9 @@ export default function Home() {
         }
       });
 
-      if (!qpExtraction.text || qpExtraction.text.trim().length < 20) {
-        throw new Error('No readable text found in the Question Paper file.');
+      const hasQpImages = qpExtraction.pageImages && qpExtraction.pageImages.length > 0;
+      if ((!qpExtraction.text || qpExtraction.text.trim().length < 20) && !hasQpImages) {
+        throw new Error('No readable text or page images found in the Question Paper file.');
       }
 
       let akText = '';
@@ -144,7 +145,8 @@ export default function Home() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text: qpExtraction.text,
+          text: qpExtraction.text || undefined,
+          images: qpExtraction.pageImages || undefined,
           answerKeyText: akText || undefined,
           filename: questionPaper.name,
           options: { maxQuestions: 200 },
