@@ -23,9 +23,6 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Setup Tauri CLI
-        run: cargo install tauri-cli --version "^2.0.0"
-
       - name: Install dependencies
         run: bun install
 
@@ -42,7 +39,7 @@ jobs:
           Move-Item -Path "src-tauri/binaries/ollama.exe" -Destination "src-tauri/binaries/ollama-x86_64-pc-windows-msvc.exe" -Force
 
       - name: Build Tauri app
-        run: cargo tauri build
+        run: npx tauri build
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
