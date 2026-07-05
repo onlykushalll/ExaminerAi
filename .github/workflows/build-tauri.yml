@@ -32,10 +32,11 @@ jobs:
       - name: Download Ollama binary
         shell: powershell
         run: |
+          $ProgressPreference = 'SilentlyContinue'
           $url = "https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip"
           $output = "src-tauri/binaries/ollama-windows-amd64.zip"
           New-Item -ItemType Directory -Force -Path "src-tauri/binaries" | Out-Null
-          Invoke-WebRequest -Uri $url -OutFile $output
+          curl.exe -L -o $output $url
           Expand-Archive -Path $output -DestinationPath "src-tauri/binaries" -Force
           Remove-Item $output
           Move-Item -Path "src-tauri/binaries/ollama.exe" -Destination "src-tauri/binaries/ollama-x86_64-pc-windows-msvc.exe" -Force
