@@ -8,7 +8,7 @@ interface EvaluateRequest {
   studentAnswer: string;
   referenceAnswer?: string;
   maxMarks?: number;
-  questionType?: "mcq" | "subjective";
+  questionType?: "mcq" | "subjective" | "assertion_reason";
   answer?: string;
   reference?: string;
   max_marks?: number;
@@ -24,7 +24,11 @@ interface EvaluateResponse {
   refinedAnswer?: string;
 }
 
-function evaluateAnswer(req: EvaluateRequest): EvaluateResponse {
+/**
+ * Local fallback evaluation (used only when Groq is NOT configured).
+ * Basic keyword-matching heuristic. AI evaluation is strongly preferred.
+ */
+function evaluateAnswerLocal(req: EvaluateRequest): EvaluateResponse {
   const maxMarks = req.maxMarks || 5;
   const refAnswer = req.referenceAnswer || "";
   const studentAns = req.studentAnswer.trim();
@@ -41,7 +45,7 @@ function evaluateAnswer(req: EvaluateRequest): EvaluateResponse {
     };
   }
 
-  // Subjective evaluation
+  // Subjective / Assertion-Reason evaluation
   if (!studentAns) {
     return {
       marksAwarded: 0,
@@ -64,17 +68,17 @@ function evaluateAnswer(req: EvaluateRequest): EvaluateResponse {
     return {
       marksAwarded: baseMarks,
       maxMarks,
-      feedback: `Answer has ${wordCount} words. Ensure all key points are covered.`,
+      feedback: `Answer has ${wordCount} words. Ensure all key points are covered. (Local fallback — set GROQ_API_KEY for AI evaluation.)`,
       missingPoints: ["Comparison with reference answer not available"],
       strengths: wordCount > 0 ? ["Answer attempt made"] : []
     };
   }
 
   // Evaluate against reference answer
-  return evaluateAgainstReference(studentAns, refAnswer, maxMarks);
+  return evaluateAgainstReferenceLocal(studentAns, refAnswer, maxMarks);
 }
 
-function evaluateAgainstReference(
+function evaluateAgainstReferenceLocal(
   studentAnswer: string,
   referenceAnswer: string,
   maxMarks: number
@@ -82,7 +86,6 @@ function evaluateAgainstReference(
   const refLower = referenceAnswer.toLowerCase();
   const stuLower = studentAnswer.toLowerCase();
 
-  // Extract key phrases from reference (split by common delimiters)
   const refPhrases = extractKeyPhrases(refLower);
   const stuPhrases = extractKeyPhrases(stuLower);
 
@@ -90,13 +93,12 @@ function evaluateAgainstReference(
     return {
       marksAwarded: Math.floor(maxMarks / 2),
       maxMarks,
-      feedback: "Reference answer format unclear. Manual review recommended.",
+      feedback: "Reference answer format unclear. Manual review recommended. (Local fallback.)",
       missingPoints: [],
       strengths: []
     };
   }
 
-  // Calculate coverage
   const matchedCount = refPhrases.filter((phrase) =>
     stuPhrases.some((stud) => stud.includes(phrase) || phrase.includes(stud))
   ).length;
@@ -104,7 +106,7 @@ function evaluateAgainstReference(
   const coverage = matchedCount / refPhrases.length;
   let marksAwarded = 0;
 
-  if (coverage >= 0.9) marksAwarded = maxMarks; // Full marks
+  if (coverage >= 0.9) marksAwarded = maxMarks;
   else if (coverage >= 0.75) marksAwarded = Math.ceil(maxMarks * 0.85);
   else if (coverage >= 0.5) marksAwarded = Math.ceil(maxMarks * 0.6);
   else if (coverage >= 0.25) marksAwarded = Math.ceil(maxMarks * 0.3);
@@ -118,20 +120,11 @@ function evaluateAgainstReference(
   const strengths: string[] = [];
   if (coverage >= 0.75) strengths.push("Good coverage of key points");
   if (studentAnswer.length > 100) strengths.push("Detailed explanation");
-  if (/demonstrate|explain|analyze|discuss/i.test(studentAnswer))
-    strengths.push("Analytical approach shown");
 
   const feedbackParts: string[] = [];
-  feedbackParts.push(
-    `${Math.round(coverage * 100)}% of key points covered.`
-  );
+  feedbackParts.push(`${Math.round(coverage * 100)}% of key points covered. (Local fallback.)`);
   if (missingPhrases.length > 0) {
-    feedbackParts.push(
-      `Missing concepts: ${missingPhrases.slice(0, 2).join(", ")}`
-    );
-  }
-  if (coverage < 0.5) {
-    feedbackParts.push("Review reference answer for additional context.");
+    feedbackParts.push(`Missing: ${missingPhrases.slice(0, 2).join(", ")}`);
   }
 
   return {
@@ -144,7 +137,6 @@ function evaluateAgainstReference(
 }
 
 function extractKeyPhrases(text: string): string[] {
-  // Split by: periods, semicolons, "and", "or", commas (with caps after)
   const phrases = text
     .split(/[.;]|,(?=\s+[A-Z])|(?<=[a-z])\s+and\s+(?=[a-z])|(?<=[a-z])\s+or\s+(?=[a-z])/)
     .map((phrase) =>
@@ -155,7 +147,7 @@ function extractKeyPhrases(text: string): string[] {
     )
     .filter((phrase) => phrase.length > 3 && phrase.split(/\s+/).length <= 15);
 
-  return [...new Set(phrases)]; // Dedupe
+  return [...new Set(phrases)];
 }
 
 export async function POST(req: NextRequest) {
@@ -175,18 +167,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Use Groq AI if configured (primary path)
     if (isGroqEnabled()) {
       const result = await evaluateAnswerWithGroq(
         question,
         studentAnswer,
         referenceAnswer,
         maxMarks,
-        questionType
+        questionType as "mcq" | "subjective" | "assertion_reason"
       );
-      return NextResponse.json(result);
+      return NextResponse.json({
+        marksAwarded: result.marksAwarded,
+        maxMarks,
+        feedback: result.feedback,
+        missingPoints: result.missingPoints,
+        strengths: result.strengths,
+        refinedAnswer: result.refinedAnswer,
+      });
     }
 
-    const result = evaluateAnswer({
+    // Local fallback (basic heuristic — NOT for production use)
+    const result = evaluateAnswerLocal({
       question,
       studentAnswer,
       referenceAnswer,

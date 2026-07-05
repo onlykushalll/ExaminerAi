@@ -1,7 +1,7 @@
 /**
  * ============================================================
  * lib/extractor/types.ts — Complete Type System
- * Examiner AI — Question Extraction Engine v2
+ * Examiner AI — Question Extraction Engine v3
  * ============================================================
  */
 
@@ -34,6 +34,8 @@ export interface ExtractedQuestion {
   confidence: number;
   section?: string;
   expectedAnswer?: string;
+  /** Page numbers in the source document that contain this question (1-indexed) */
+  pageNumbers?: number[];
   metadata?: {
     number?: number;
     splitMethod?: string;
@@ -53,6 +55,12 @@ export interface ExtractionResult {
   questions: ExtractedQuestion[];
   total: number;
   warnings: string[];
+  /** Whether the document contained an inline solutions/answer-key section */
+  hasSolutions?: boolean;
+  /** Whether a separate answer key was provided/matched */
+  hasAnswerKey?: boolean;
+  /** Section names detected in the document */
+  sections?: string[];
 }
 
 // ─────────────────────────────────────────────
@@ -127,6 +135,8 @@ export interface PDFPage {
   text: string;
   lines: string[];
   rawItems: PDFTextItem[];
+  /** Rendered page image as base64 JPEG (for diagram display) */
+  imageBase64?: string;
 }
 
 export interface PDFExtractionResult {
@@ -154,4 +164,6 @@ export interface TextExtractionResult {
   fileType: InputFileType;
   pageCount?: number;
   warnings: string[];
+  /** Page images (base64 JPEG) for diagram display in the test UI */
+  pageImages?: string[];
 }

@@ -3,12 +3,17 @@
  * app/api/question-extraction/route.ts — Extraction API Route
  * Examiner AI — AI-Only Question Extraction Engine v3
  * ============================================================
+ *
+ * CHANGES FROM v2:
+ * - Removed broken `parseQuestions` import (lib/extractor/archive/ doesn't exist)
+ * - Added `hasSolutions` + `hasAnswerKey` flags to response
+ * - Added proper error handling when Groq is not configured
+ * - Added page images support for diagram-based questions
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import type { ExtractionResult } from '@/lib/extractor/types';
 import { isGroqEnabled, parseQuestionsWithGroq, ocrPageWithGroqVision } from '@/lib/extractor/groq-client';
-import { parseQuestions } from '@/lib/extractor/local/parser';
 
 interface ExtractionRequest {
   text?: string;
@@ -49,7 +54,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const pageTexts = await Promise.all(
         body.images.map(image => ocrPageWithGroqVision(image))
       );
-      textToParse = pageTexts.join('\n\n');
+      textToParse = pageTexts.join('\n\f\n');
       console.log(`[question-extraction] Groq Vision OCR completed. Extracted ${textToParse.length} characters.`);
     } catch (err: any) {
       console.error('[question-extraction] Groq Vision OCR failed:', err);
@@ -80,16 +85,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
   } else {
-    console.log('[question-extraction] Groq is not configured. Falling back to local offline parser...');
-    try {
-      result = parseQuestions(textToParse);
-    } catch (err: any) {
-      console.error('[question-extraction] Local offline parsing failed:', err);
-      return NextResponse.json(
-        { error: `Local offline parsing failed: ${err.message}` },
-        { status: 500 }
-      );
-    }
+    // No Groq key + no local parser = honest error, not a crash
+    console.error('[question-extraction] Groq is not configured and local fallback parser was removed.');
+    return NextResponse.json(
+      {
+        error: 'AI parsing is not configured. Set GROQ_API_KEY in your .env file to enable question extraction.',
+      },
+      { status: 503 }
+    );
   }
 
   if (body.options?.maxQuestions && result.questions.length > body.options.maxQuestions) {
@@ -110,7 +113,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   console.log(
     `[question-extraction] "${body.filename ?? 'unknown'}" -> ` +
-    `${result.total} questions in ${processingTimeMs}ms`
+    `${result.total} questions in ${processingTimeMs}ms ` +
+    `(hasSolutions: ${result.hasSolutions ?? false}, hasAnswerKey: ${result.hasAnswerKey ?? false})`
   );
 
   return NextResponse.json(response, {

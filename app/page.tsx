@@ -1,22 +1,19 @@
-
 'use client';
 
 /**
  * ============================================================
- * app/page.tsx — Examiner AI Main Interface Redesign
+ * app/page.tsx — Examiner AI Main Interface (v3 — fixed)
  * ============================================================
  *
- * Client component that handles:
- *  1. File upload (drag-and-drop + click)
- *  2. Client-side PDF text extraction (pdfjs)
- *  3. API call for question parsing
- *  4. Beautiful results display (Light Theme / AppShell)
- *
- * Aesthetic: Warm, editorial bookish light theme (Alabaster + Amber)
- * Font: IBM Plex Mono (monospace precision) + Playfair Display (headings)
+ * CHANGES FROM v2:
+ * - Fixed white-box "Parse New File" button (Tailwind v4 @theme slate-700 issue → inline styles)
+ * - Removed "Copy Raw Text" + "Export JSON" buttons (per user request)
+ * - Added hasSolutions/hasAnswerKey indicators in stats bar
+ * - Fixed stats bar overlap (better flex layout + gap)
+ * - Removed unused state (copiedRaw) + functions (copyRawText, exportJSON)
  */
 
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { extractTextFromFile, validateFile } from '@/lib/extractor/text-extractor';
 import type { ExtractedQuestion, ExtractionResult } from '@/lib/extractor/types';
@@ -72,8 +69,6 @@ export default function Home() {
   const [state, setState] = useState<AppState>(INITIAL_STATE);
   const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'mcq' | 'subjective' | 'assertion_reason'>('all');
-  const [copiedRaw, setCopiedRaw] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ─────────────────────────────────────────────
   // CORE PIPELINE
@@ -141,7 +136,7 @@ export default function Home() {
         extractedText: qpExtraction.text,
         answerKeyText: akText,
         progressPercent: 85,
-        progress: 'Parsing questions and solutions with Llama AI...',
+        progress: 'AI parsing questions with 3-pass engine...',
       }));
 
       // ── Step 2: Parse questions (server API) ────────────────────
@@ -192,27 +187,6 @@ export default function Home() {
     setState(INITIAL_STATE);
     setSelectedQuestion(null);
     setFilterType('all');
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
-  const copyRawText = async () => {
-    if (!state.extractedText) return;
-    await navigator.clipboard.writeText(state.extractedText);
-    setCopiedRaw(true);
-    setTimeout(() => setCopiedRaw(false), 2000);
-  };
-
-  const exportJSON = () => {
-    if (!state.result) return;
-    const blob = new Blob([JSON.stringify(state.result ?? {}, null, 2)], {
-      type: 'application/json',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `questions_${state.files.questionPaper?.name?.replace(/\.\w+$/, '') ?? 'export'}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   const startPractice = () => {
@@ -237,7 +211,7 @@ export default function Home() {
       normalizedText: state.extractedText,
       lines: [],
       sections: [],
-      sectionNames: [],
+      sectionNames: state.result.sections ?? [],
       questions: state.result.questions.map(q => ({
         id: q.id,
         number: q.id,
@@ -319,14 +293,18 @@ export default function Home() {
           to   { opacity: 1; transform: translateY(0); }
         }
         @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         .fade-in { animation: fadeIn 0.4s ease both; }
         .fade-in-delay-1 { animation-delay: 0.08s; }
         .fade-in-delay-2 { animation-delay: 0.16s; }
         .fade-in-delay-3 { animation-delay: 0.24s; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .fade-in, .fade-in-delay-1, .fade-in-delay-2, .fade-in-delay-3 {
+            animation: none;
+          }
+        }
       `}</style>
 
       <div style={{ width: '100%' }}>
@@ -338,14 +316,26 @@ export default function Home() {
             state.stage === 'done' ? (
               <button
                 onClick={handleReset}
-                className="inline-flex rounded-full border border-slate-200 transition hover:bg-slate-50"
                 style={{
-                  color: '#334155',
-                  backgroundColor: '#ffffff',
+                  fontFamily: 'var(--mono)',
+                  fontSize: 12,
+                  letterSpacing: 0.5,
+                  textTransform: 'uppercase',
+                  background: 'var(--surface)',
+                  color: 'var(--text)',
+                  border: '1px solid var(--border2)',
                   padding: '12px 20px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  borderRadius: 24,
+                  transition: 'background 0.2s, border-color 0.2s',
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = 'var(--bg)';
+                  e.currentTarget.style.borderColor = 'var(--text)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = 'var(--surface)';
+                  e.currentTarget.style.borderColor = 'var(--border2)';
                 }}
               >
                 ← Parse New File
@@ -439,20 +429,45 @@ export default function Home() {
           {state.stage === 'done' && state.result && (
             <div className="fade-in" style={{ paddingTop: 10 }}>
 
-              {/* Stats bar */}
+              {/* Stats bar — fixed layout to prevent overlap */}
               <div style={{
-                display: 'flex', alignItems: 'center', gap: 0,
-                borderBottom: '1px solid var(--border)', marginBottom: 32,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 24,
+                borderBottom: '1px solid var(--border)',
+                marginBottom: 24,
                 flexWrap: 'wrap',
+                paddingBottom: 16,
               }}>
                 <StatBlock value={state.result.total} label="Questions" color="var(--amber)" />
                 <StatBlock value={typeCounts.mcq ?? 0} label="MCQ" color="var(--blue)" />
                 <StatBlock value={typeCounts.subjective ?? 0} label="Subjective" color="var(--green)" />
-                <StatBlock value={typeCounts.assertion_reason ?? 0} label="Assertion-Reason" color="var(--purple)" />
+                <StatBlock value={typeCounts.assertion_reason ?? 0} label="A-R" color="var(--purple)" />
                 <StatBlock value={`${state.processingTimeMs}ms`} label="Parse Time" />
 
-                {/* Actions */}
-                <div style={{ marginLeft: 'auto', display: 'flex', gap: 8, padding: '8px 0' }}>
+                {/* Solutions detected badge */}
+                {state.result.hasSolutions ? (
+                  <div style={{
+                    fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: 1.5,
+                    textTransform: 'uppercase', color: 'var(--green)',
+                    background: 'rgba(13,148,136,0.08)', border: '1px solid rgba(13,148,136,0.2)',
+                    padding: '6px 12px', borderRadius: 20,
+                  }}>
+                    ✓ Answer Key Detected
+                  </div>
+                ) : (
+                  <div style={{
+                    fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: 1.5,
+                    textTransform: 'uppercase', color: 'var(--amber)',
+                    background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.2)',
+                    padding: '6px 12px', borderRadius: 20,
+                  }}>
+                    ⚠ No Solutions — AI Will Generate
+                  </div>
+                )}
+
+                {/* Action — only Practice Test */}
+                <div style={{ marginLeft: 'auto' }}>
                   <ActionButton onClick={startPractice} label="Practice Test" primary />
                 </div>
               </div>
@@ -483,7 +498,7 @@ export default function Home() {
                     background: 'none', border: 'none', cursor: 'pointer',
                     color: filterType === type ? 'var(--amber)' : 'var(--muted)',
                     borderBottom: `2px solid ${filterType === type ? 'var(--amber)' : 'transparent'}`,
-                    marginBottom: -1, transition: 'all 0.2s',
+                    marginBottom: -1, transition: 'color 0.2s, border-color 0.2s',
                   }}>
                     {type === 'all' ? `All (${state.result?.total ?? 0})` :
                      type === 'mcq' ? `MCQ (${typeCounts.mcq ?? 0})` :
@@ -525,7 +540,7 @@ export default function Home() {
 
 function StatBlock({ value, label, color = 'var(--text)' }: { value: string | number; label: string; color?: string }) {
   return (
-    <div style={{ padding: '16px 28px 16px 0', marginRight: 28 }}>
+    <div style={{ minWidth: 80 }}>
       <div style={{ fontFamily: 'var(--mono)', fontSize: 28, fontWeight: 600, color, lineHeight: 1 }}>
         {value}
       </div>
@@ -546,21 +561,29 @@ function ActionButton({
   primary?: boolean;
 }) {
   return (
-    <button onClick={onClick} style={{
-      fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: 1,
-      textTransform: 'uppercase', padding: '10px 18px', cursor: 'pointer',
-      background: primary ? 'var(--amber)' : 'none',
-      color: primary ? '#fff' : 'var(--muted)',
-      border: primary ? 'none' : '1px solid var(--border2)',
-      fontWeight: primary ? 600 : 400,
-      transition: 'all 0.2s',
-      borderRadius: 20,
-    }}
-      onMouseOver={e => {
-        if (!primary) e.currentTarget.style.color = 'var(--text)';
+    <button
+      onClick={onClick}
+      style={{
+        fontFamily: 'var(--mono)', fontSize: 11, letterSpacing: 1,
+        textTransform: 'uppercase', padding: '12px 20px', cursor: 'pointer',
+        background: primary ? 'var(--amber)' : 'var(--surface)',
+        color: primary ? '#fff' : 'var(--text)',
+        border: primary ? 'none' : '1px solid var(--border2)',
+        fontWeight: primary ? 600 : 400,
+        transition: 'opacity 0.2s, transform 0.1s',
+        borderRadius: 20,
       }}
-      onMouseOut={e => {
-        if (!primary) e.currentTarget.style.color = 'var(--muted)';
+      onMouseOver={(e) => {
+        e.currentTarget.style.opacity = '0.9';
+      }}
+      onMouseOut={(e) => {
+        e.currentTarget.style.opacity = '1';
+      }}
+      onMouseDown={(e) => {
+        e.currentTarget.style.transform = 'scale(0.98)';
+      }}
+      onMouseUp={(e) => {
+        e.currentTarget.style.transform = 'scale(1)';
       }}
     >
       {label}
@@ -572,12 +595,14 @@ const TYPE_COLORS: Record<string, string> = {
   mcq: 'var(--blue)',
   subjective: 'var(--green)',
   assertion_reason: 'var(--purple)',
+  case_study: 'var(--amber)',
 };
 
 const TYPE_LABELS: Record<string, string> = {
   mcq: 'MCQ',
   subjective: 'Subjective',
   assertion_reason: 'A-R',
+  case_study: 'Case',
 };
 
 function QuestionCard({
@@ -600,7 +625,7 @@ function QuestionCard({
       style={{
         background: isExpanded ? 'var(--bg)' : 'var(--surface)',
         border: `1px solid ${isExpanded ? 'var(--border2)' : 'var(--border)'}`,
-        transition: 'all 0.25s',
+        transition: 'border-color 0.25s, background 0.25s',
         borderRadius: 16,
       }}
     >
@@ -628,13 +653,14 @@ function QuestionCard({
           opacity: 0.9,
           borderRadius: 4,
         }}>
-          {TYPE_LABELS[question.type]}
+          {TYPE_LABELS[question.type] ?? question.type}
         </div>
 
         {/* Question text preview */}
         <div style={{
           flex: 1, fontSize: 14, color: 'var(--text)',
           lineHeight: 1.5, fontFamily: 'var(--sans)',
+          minWidth: 0,
         }}>
           {question.question.slice(0, isExpanded ? undefined : 140)}
           {!isExpanded && question.question.length > 140 && '...'}
@@ -703,6 +729,27 @@ function QuestionCard({
             </div>
           )}
 
+          {/* Expected answer (if detected) */}
+          {question.expectedAnswer && (
+            <div style={{
+              background: 'rgba(13,148,136,0.04)', border: '1px solid rgba(13,148,136,0.15)',
+              padding: 16, borderRadius: 12, marginBottom: 16,
+            }}>
+              <div style={{
+                fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--green)',
+                letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8,
+              }}>
+                Expected Answer
+              </div>
+              <div style={{
+                fontSize: 13, lineHeight: 1.7, color: 'var(--text)',
+                whiteSpace: 'pre-wrap',
+              }}>
+                {question.expectedAnswer}
+              </div>
+            </div>
+          )}
+
           {/* Metadata */}
           <div style={{
             display: 'flex', gap: 20, flexWrap: 'wrap',
@@ -711,6 +758,7 @@ function QuestionCard({
             <span>type: {question.type}</span>
             {question.marks !== undefined && <span>marks: {question.marks}</span>}
             <span>confidence: {Math.round(confidence * 100)}%</span>
+            {question.section && <span>section: {question.section}</span>}
             {question.metadata?.splitMethod && <span>split: {question.metadata.splitMethod}</span>}
             {question.metadata?.optionFormat && <span>options: {question.metadata.optionFormat}</span>}
           </div>

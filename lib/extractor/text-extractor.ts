@@ -1,18 +1,13 @@
 /**
  * ============================================================
  * lib/extractor/text-extractor.ts — Unified Text Extraction
- * Examiner AI — Question Extraction Engine
+ * Examiner AI — Question Extraction Engine v3
  * ============================================================
  *
- * Single entry point for all file type text extraction.
- * This is what you call from the client component.
- *
- * Supported file types:
- *  - PDF (via pdfjs-dist, client-side)
- *  - Plain text (.txt)
- *  - Images (placeholder — OCR hook ready)
- *
- * NOTE: All of this is CLIENT-SIDE ONLY due to pdfjs.
+ * CHANGES FROM v2:
+ * - Pass onProgress to extractTextWithGLMOCR for image files (was missing)
+ * - Return pageImages from PDF extraction for diagram display
+ * - Better fallback chain with clear warnings
  */
 
 import type { TextExtractionResult, InputFileType, TextExtractionOptions } from './types';
@@ -61,14 +56,6 @@ export function detectFileType(file: File): InputFileType {
 // MAIN EXTRACTION FUNCTION
 // ─────────────────────────────────────────────
 
-/**
- * Extract text from any supported file type.
- *
- * CLIENT-SIDE ONLY — do not import in server components or API routes.
- *
- * @param file     The uploaded File object
- * @param options  Optional extraction configuration
- */
 export async function extractTextFromFile(
   file: File,
   options: TextExtractionOptions = {}
@@ -180,30 +167,15 @@ async function extractFromText(
 }
 
 // ─────────────────────────────────────────────
-// IMAGE EXTRACTION (OCR Hook)
+// IMAGE EXTRACTION (OCR)
 // ─────────────────────────────────────────────
 
-/**
- * Extract text from an image file.
- *
- * Currently implemented as a placeholder that explains the limitation.
- * To enable OCR, install tesseract.js and uncomment the implementation.
- *
- * FULL OCR IMPLEMENTATION:
- * ```
- * const Tesseract = await import('tesseract.js');
- * const { data: { text } } = await Tesseract.recognize(file, 'eng', {
- *   logger: m => console.log(m)
- * });
- * return { text, fileType: 'image', warnings };
- * ```
- */
 async function extractFromImage(
   file: File,
   warnings: string[],
   options: TextExtractionOptions
 ): Promise<TextExtractionResult> {
-  // Try local Ollama GLM-OCR first
+  // Try local Ollama GLM-OCR first — pass onProgress for live feedback
   try {
     const ocrText = await extractTextWithGLMOCR(file, options.onProgress);
     if (ocrText.trim()) {
@@ -213,7 +185,8 @@ async function extractFromImage(
         warnings,
       };
     }
-  } catch (err) {
+  } catch (err: any) {
+    warnings.push(`GLM-OCR failed (${err.message}). Falling back to client-side Tesseract.js.`);
     console.warn("GLM-OCR failed or is offline. Falling back to client-side Tesseract.js.", err);
   }
 
@@ -230,8 +203,8 @@ async function extractFromImage(
       {
         logger: (m: { status: string; progress: number }) => {
           if (m.status === 'recognizing text') {
-            // Progress callback (can be wired to UI)
-            console.log(`OCR Progress: ${Math.round(m.progress * 100)}%`);
+            const pct = Math.round(m.progress * 100);
+            options.onProgress?.(pct, `Tesseract OCR: ${pct}%`);
           }
         },
       }
@@ -279,9 +252,6 @@ export interface ValidationResult {
   warnings?: string[];
 }
 
-/**
- * Validate a file before extraction.
- */
 export function validateFile(file: File): ValidationResult {
   const warnings: string[] = [];
 

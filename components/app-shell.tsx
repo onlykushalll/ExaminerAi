@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Library, ScanText, ChevronLeft, ChevronRight } from "lucide-react";
-import { ReactNode, useState, useEffect } from "react";
+import { Library, Menu, ScanText, X } from "lucide-react";
+import { ReactNode, useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -17,120 +17,159 @@ type AppShellProps = {
 };
 
 export function AppShell({ children, currentPath }: AppShellProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Close sidebar on route change (mobile)
   useEffect(() => {
-    const val = localStorage.getItem("examiner-ai-sidebar-collapsed");
-    if (val === "true") {
-      setIsCollapsed(true);
-    }
-    setMounted(true);
+    setSidebarOpen(false);
+  }, [currentPath]);
+
+  // Close sidebar on Escape key
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSidebarOpen(false);
+    };
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
   }, []);
 
-  const toggleCollapse = () => {
-    setIsCollapsed((prev) => {
-      const next = !prev;
-      localStorage.setItem("examiner-ai-sidebar-collapsed", String(next));
-      return next;
-    });
-  };
+  // Lock body scroll when sidebar is open (mobile)
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [sidebarOpen]);
 
   return (
     <div className="min-h-screen">
-      {/* Full width container shifting sidebar to the far left */}
-      <div className="flex w-full max-w-none gap-6 px-6 py-4">
+      <div className="mx-auto flex max-w-[1400px] gap-4 px-3 py-3 sm:px-4 sm:py-4 lg:px-6">
+        {/* ── Desktop Sidebar (shifted lefter — reduced gap + padding) ── */}
         <aside
           className={cn(
-            "sticky top-4 hidden h-[calc(100vh-2rem)] shrink-0 flex-col rounded-[2rem] border border-white/60 bg-ink py-8 text-white shadow-soft lg:flex transition-all duration-300 justify-between",
-            isCollapsed ? "w-20 px-3" : "w-72 px-6"
+            "sticky top-4 hidden h-[calc(100vh-2rem)] w-64 shrink-0 flex-col rounded-[2rem] border border-white/60 bg-ink px-5 py-7 text-white shadow-soft lg:flex"
           )}
         >
-          <div className="flex flex-col">
-            <div className="flex items-center justify-between">
-              {!isCollapsed && (
-                <div className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-white/70">
-                  Examiner.ai
-                </div>
-              )}
-              {isCollapsed && (
-                <div className="mx-auto rounded-full bg-white/10 p-1 text-[10px] font-bold uppercase tracking-wider text-white/80">
-                  Ex
-                </div>
-              )}
-            </div>
-
-            {!isCollapsed && (
-              <div className="mt-4">
-                <h1 className="text-xl font-semibold">A simple home for your exam papers.</h1>
-                <p className="mt-2 text-xs leading-5 text-white/70">
-                  Upload PDFs and move into a clean test flow without extra screens.
-                </p>
-              </div>
-            )}
-
-            <nav className="mt-10 space-y-2">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const active = currentPath === item.href;
-
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    title={isCollapsed ? item.label : undefined}
-                    className={cn(
-                      "flex items-center gap-3 rounded-2xl py-3 transition",
-                      isCollapsed ? "justify-center px-0" : "px-4",
-                      active
-                        ? "bg-white text-[#0f172a] font-semibold"
-                        : "text-white/72 hover:bg-white/10 hover:text-white"
-                    )}
-                  >
-                    <Icon className="h-5 w-5 shrink-0" />
-                    {!isCollapsed && <span className="text-sm">{item.label}</span>}
-                  </Link>
-                );
-              })}
-            </nav>
-          </div>
-
-          {/* Collapse toggle button at the bottom of the sidebar */}
-          <button
-            onClick={toggleCollapse}
-            className="flex items-center justify-center gap-2 rounded-xl py-2 text-white/60 hover:bg-white/10 hover:text-white transition w-full mt-auto"
-          >
-            {isCollapsed ? (
-              <ChevronRight className="h-5 w-5" />
-            ) : (
-              <div className="flex items-center gap-2">
-                <ChevronLeft className="h-4 w-4" />
-                <span className="text-xs font-medium">Collapse Sidebar</span>
-              </div>
-            )}
-          </button>
-        </aside>
-
-        <div className="w-full">
-          <header className="card-surface sticky top-4 z-20 mb-6 flex items-center justify-between px-5 py-4 lg:hidden">
-            <Link href="/" className="text-lg font-semibold">
+          <div>
+            <div className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-white/70">
               Examiner.ai
-            </Link>
-            <div className="flex gap-2 overflow-x-auto">
-              {navItems.map((item) => (
+            </div>
+            <h1 className="mt-4 text-xl font-semibold leading-tight">
+              A simple home for your exam papers.
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-white/70">
+              Upload PDFs and move into a clean test flow without extra screens.
+            </p>
+          </div>
+          <nav className="mt-8 space-y-2">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = currentPath === item.href;
+
+              return (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "rounded-full px-3 py-2 text-xs",
-                    currentPath === item.href ? "bg-ink text-white" : "bg-slate-100 text-slate-600"
+                    "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400",
+                    active ? "bg-white text-ink" : "text-white/70 hover:bg-white/10 hover:text-white"
                   )}
                 >
+                  <Icon className="h-4 w-4 shrink-0" />
                   {item.label}
                 </Link>
-              ))}
+              );
+            })}
+          </nav>
+
+          <div className="mt-auto pt-8">
+            <p className="text-xs text-white/40">
+              v3.1 · AI-powered
+            </p>
+          </div>
+        </aside>
+
+        {/* ── Mobile sidebar overlay ── */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-50 lg:hidden"
+            style={{ background: "rgba(15, 23, 42, 0.5)" }}
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+
+        <aside
+          className={cn(
+            "fixed left-0 top-0 z-50 h-full w-72 shrink-0 flex-col rounded-r-[2rem] bg-ink px-6 py-8 text-white shadow-soft transition-transform duration-300 ease-out lg:hidden",
+            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <div className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-white/70">
+              Examiner.ai
             </div>
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(false)}
+              className="rounded-full p-2 text-white/70 hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400"
+              aria-label="Close sidebar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <h1 className="mt-4 text-xl font-semibold leading-tight">
+            A simple home for your exam papers.
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-white/70">
+            Upload PDFs and move into a clean test flow without extra screens.
+          </p>
+
+          <nav className="mt-8 space-y-2">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = currentPath === item.href;
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400",
+                    active ? "bg-white text-ink" : "text-white/70 hover:bg-white/10 hover:text-white"
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </aside>
+
+        {/* ── Main content area ── */}
+        <div className="min-w-0 flex-1">
+          {/* Mobile header with hamburger toggle */}
+          <header className="card-surface sticky top-4 z-20 mb-4 flex items-center justify-between px-4 py-3 lg:hidden">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="rounded-full p-2 text-ink hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-500"
+              aria-label="Open sidebar"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+            <Link href="/" className="text-base font-semibold">
+              Examiner.ai
+            </Link>
+            <div className="w-9" />
           </header>
+
           {children}
         </div>
       </div>

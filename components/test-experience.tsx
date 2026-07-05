@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -30,6 +31,9 @@ type DraftState = {
   markedForReview: string[];
   currentQuestionId: string | null;
   selectedSectionId: string;
+  hasStarted: boolean;
+  timeRemaining: number;
+  answerEvaluations: Record<string, QuestionEvaluationResult>;
 };
 
 type QuestionEvaluationResult = EvaluateAnswerResponse;
@@ -106,7 +110,11 @@ export function TestExperience({ paper, onSubmit }: TestExperienceProps) {
       setMarkedForReview(parsed.markedForReview ?? []);
       setCurrentQuestionId(parsed.currentQuestionId ?? questions[0]?.id ?? null);
       setSelectedSectionId(parsed.selectedSectionId ?? sections[0].id);
-      setAutosaveStamp("Recovered local draft");
+      if (typeof parsed.hasStarted === "boolean") setHasStarted(parsed.hasStarted);
+      if (typeof parsed.timeRemaining === "number" && parsed.timeRemaining > 0) setTimeRemaining(parsed.timeRemaining);
+      if (parsed.answerEvaluations && typeof parsed.answerEvaluations === "object") setAnswerEvaluations(parsed.answerEvaluations);
+      setIsRunning(false);
+      setAutosaveStamp(parsed.hasStarted ? "Recovered from crash - timer paused" : "Recovered local draft");
     } catch {
       setAutosaveStamp("Unable to restore draft");
     }
@@ -128,16 +136,42 @@ export function TestExperience({ paper, onSubmit }: TestExperienceProps) {
     return () => window.clearInterval(interval);
   }, [isRunning, timeRemaining]);
 
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && isRunning) {
+        setIsRunning(false);
+        setAutosaveStamp("Auto-paused (tab switched)");
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [isRunning]);
+
   const answeredQuestionIds = Object.entries(answers)
     .filter(([, value]) => value.trim().length > 0)
     .map(([questionId]) => questionId);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasStarted && answeredQuestionIds.length > 0) {
+        e.preventDefault();
+        e.returnValue = "You have an unfinished test. Are you sure you want to leave?";
+        return e.returnValue;
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasStarted, answeredQuestionIds.length]);
 
   useEffect(() => {
     const draft: DraftState = {
       answers,
       markedForReview,
       currentQuestionId,
-      selectedSectionId
+      selectedSectionId,
+      hasStarted,
+      timeRemaining,
+      answerEvaluations
     };
 
     window.localStorage.setItem(storageKey, JSON.stringify(draft));
@@ -509,6 +543,27 @@ export function TestExperience({ paper, onSubmit }: TestExperienceProps) {
               </div>
 
               <p className="mt-6 whitespace-pre-line text-lg font-medium leading-8 text-ink">{currentQuestion.prompt}</p>
+
+              {paper.pageImages && paper.pageImages.length > 0 ? (
+                <div className="mt-4 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
+                  <p className="mb-3 text-xs font-medium uppercase tracking-wider text-slate-500">
+                    Reference page (for diagrams/figures)
+                  </p>
+                  <details className="group">
+                    <summary className="cursor-pointer text-sm font-medium text-ink hover:text-amber-700">
+                      Show page image
+                    </summary>
+                    <div className="mt-3 max-h-[400px] overflow-y-auto rounded-xl bg-white p-2">
+                      <img
+                        src={paper.pageImages[0]}
+                        alt="Question paper page reference"
+                        className="w-full rounded-lg"
+                        style={{ maxHeight: "400px", objectFit: "contain" }}
+                      />
+                    </div>
+                  </details>
+                </div>
+              ) : null}
 
               <div className="mt-6 space-y-3">
                 <label className="block text-sm font-medium text-slate-700" htmlFor={`answer-${currentQuestion.id}`}>

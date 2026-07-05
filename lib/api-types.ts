@@ -71,6 +71,7 @@ export interface QuestionExtractionResponse {
   questions: ExtractedQuestion[];
   answers: ExtractedAnswer[];
   warnings: string[];
+  pageImages?: string[];
 }
 
 export interface UploadFileInput {
