@@ -731,26 +731,7 @@ function QuestionCard({
             </div>
           )}
 
-          {/* Expected answer (if detected) */}
-          {question.expectedAnswer && (
-            <div style={{
-              background: 'rgba(13,148,136,0.04)', border: '1px solid rgba(13,148,136,0.15)',
-              padding: 16, borderRadius: 12, marginBottom: 16,
-            }}>
-              <div style={{
-                fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--green)',
-                letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8,
-              }}>
-                Expected Answer
-              </div>
-              <div style={{
-                fontSize: 13, lineHeight: 1.7, color: 'var(--text)',
-                whiteSpace: 'pre-wrap',
-              }}>
-                {question.expectedAnswer}
-              </div>
-            </div>
-          )}
+
 
           {/* Metadata */}
           <div style={{

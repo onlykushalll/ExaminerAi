@@ -282,22 +282,49 @@ function joinLineItems(items: PDFTextItem[]): string {
  */
 function detectMultiColumn(groups: LineGroup[], pageWidth: number): boolean {
   const midpoint = pageWidth * COLUMN_SPLIT_RATIO;
+  const gutterWidth = 30; // 30 units gutter width
+  const gutterLeft = midpoint - gutterWidth / 2;
+  const gutterRight = midpoint + gutterWidth / 2;
+
   let leftOnly = 0;
   let rightOnly = 0;
-  let both = 0;
+  let bothWithGutter = 0;
+  let spanningCount = 0;
 
   for (const group of groups) {
-    const hasLeft = group.items.some(item => item.x < midpoint);
-    const hasRight = group.items.some(item => item.x >= midpoint);
+    if (group.items.length === 0) continue;
 
-    if (hasLeft && hasRight) both++;
-    else if (hasLeft) leftOnly++;
-    else if (hasRight) rightOnly++;
+    // Check if any item overlaps the central gutter
+    const overlapsGutter = group.items.some(item => {
+      const itemRight = item.x + item.width;
+      return item.x < gutterRight && itemRight > gutterLeft;
+    });
+
+    if (overlapsGutter) {
+      spanningCount++;
+    } else {
+      const hasLeft = group.items.some(item => item.x < gutterLeft);
+      const hasRight = group.items.some(item => item.x >= gutterRight);
+
+      if (hasLeft && hasRight) {
+        bothWithGutter++;
+      } else if (hasLeft) {
+        leftOnly++;
+      } else if (hasRight) {
+        rightOnly++;
+      }
+    }
   }
 
-  // Multi-column if both left-only and right-only columns have significant content
-  // and there's little mixed content
-  return leftOnly > 5 && rightOnly > 5 && both < (leftOnly + rightOnly) * 0.3;
+  const totalClassified = leftOnly + rightOnly + bothWithGutter;
+  if (totalClassified < 10) return false;
+
+  const spanningRatio = spanningCount / groups.length;
+  // If more than 30% of the lines span across the gutter, it is single column
+  if (spanningRatio > 0.3) return false;
+
+  // Must have a reasonable number of left and right column lines
+  return leftOnly > 3 && rightOnly > 3;
 }
 
 /**

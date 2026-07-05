@@ -179,7 +179,7 @@ export async function parseQuestionsWithGroq(text: string, answerKeyText?: strin
 Identify and label these regions in the document:
 - HEADER: school name, paper title, date, subject, class, exam name
 - INSTRUCTIONS: general instructions like "read carefully", "marks are indicated", "attempt all questions"
-- SECTIONS: Section A, Section B, Part I, Part II, etc.
+- SECTIONS: Section A, Section B, Section C, Part I, Part II, etc.
 - QUESTIONS: actual exam questions (including subparts like (a), (b), (i), (ii), and OR choices)
 - SOLUTIONS: any block that starts with "Solutions", "Answer Key", "Marking Scheme", OR contains phrases like "Step 1", "Given data", "Using Ohm's law", "Formula:", "Calculation:", "Therefore", "Hence", "We know that", "According to"
 - OR_SEPARATORS: where one question has internal alternatives (e.g., "OR" or "Choice" between two sub-questions)
@@ -193,19 +193,15 @@ NEVER extract from SOLUTIONS regions. This is the most important rule.
 - "Therefore the fuse will not blow" is NOT a question — it is a conclusion.
 - "Heat generated = 43200 J" is NOT a question — it is an answer.
 
-If a question has internal subparts ((a), (b), (i), (ii)), keep them together as ONE question.
-If a question has an OR choice, keep both alternatives in the same question.
-A question is typically SHORT (1-4 lines). If an extracted "question" is longer than 8 lines, it probably includes solution text — re-check.
-
 If the document is NOT an exam paper (e.g., it's a manual, README, code file, or skill documentation), return an empty questions array with a warning explaining what the document appears to be.
 
 For each question, detect:
 - id: sequential string starting at "1"
-- question: the question text (WITHOUT options, WITHOUT marks notation, WITHOUT solution steps)
+- question: the question text (WITHOUT options, WITHOUT marks notation at the end, WITHOUT solution steps)
 - type: "mcq" (has options A/B/C/D or 1/2/3/4) | "subjective" (short/long answer) | "assertion_reason" (Assertion + Reason format) | "case_study" (case-based paragraph with sub-questions)
-- options: array of option texts (ONLY for MCQ)
+- options: array of option texts (ONLY for MCQ). Do NOT include option labels like (A), (B), (C), (D) or a., b., c., d. inside the strings — extract ONLY the raw option text (e.g. "Hydrogen" instead of "A. Hydrogen").
 - marks: number (look for [1], (2), 2M, 5 marks, [5] patterns — infer from section if missing)
-- section: e.g. "Section A", "Section B", "Part I"
+- section: e.g. "Section A", "Section B", "Part I". Ensure section names are correctly mapped from the document headers.
 - expectedAnswer: the solution/answer IF it exists in the document or answer key. Empty string if not found.
 - confidence: 0.0 to 1.0 based on extraction clarity
 
@@ -225,6 +221,13 @@ If a separate answer key text was provided:
 - Match answer key entries to questions by number
 - Set "hasSolutions" to true
 - Set "hasAnswerKey" to true
+
+=== HANDLING COMPLEX QUESTION TYPES ===
+1. **Subparts**: If a question has subparts (e.g. (a), (b) or (i), (ii)), keep them together inside the single question text (e.g. formatted with clean bullet points or list style). Do NOT split them into separate top-level questions.
+2. **Case Study / Passage-based Questions**: Group the reading passage/case study description and all its related sub-questions into a single question block of type "case_study". Set the question text to start with the passage, followed by the subparts.
+3. **Match the Following**: Preserve the columns in the question text using line breaks and clear tab/space separation (e.g. Column I on the left, Column II on the right).
+4. **Fill-in-the-blanks**: Keep blank lines (e.g. "_______" or "__________") intact in the question text.
+5. **Diagram References**: If a question refers to a diagram or figure, preserve the reference text (e.g. "In the given figure, ...") in the question text.
 
 === OUTPUT FORMAT ===
 Return ONLY a valid JSON object (no markdown, no code blocks):
