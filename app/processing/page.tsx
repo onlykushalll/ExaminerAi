@@ -19,7 +19,7 @@ export default function ProcessingPage() {
         title="Processing submission"
         description="Use this route as the transition state while answer evaluation, rubric scoring, and result synthesis run in the background."
         action={
-          <Link href="/results" className="inline-flex rounded-full bg-ink px-5 py-3 text-sm text-white">
+          <Link href="/results" className="inline-flex rounded-full bg-ink px-5 py-3 text-sm text-white" style={{ color: '#ffffff' }}>
             View results
           </Link>
         }

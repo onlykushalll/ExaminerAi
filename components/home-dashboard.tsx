@@ -105,6 +105,7 @@ export function HomeDashboard({
                       type="button"
                       onClick={() => inputRefs.current[slot.id]?.click()}
                       className="inline-flex items-center rounded-full bg-ink px-3 py-2 text-xs font-medium text-white"
+                      style={{ color: '#ffffff' }}
                     >
                       {file ? "Replace" : "Select file"}
                     </button>
@@ -150,6 +151,7 @@ export function HomeDashboard({
                 ? "bg-ink text-white"
                 : "cursor-not-allowed bg-slate-200 text-slate-500"
             )}
+            style={canCreateTest && !isSubmitting ? { color: '#ffffff' } : undefined}
           >
             <Plus className="h-4 w-4" />
             {isSubmitting ? "Extracting..." : "Create Test"}

@@ -28,7 +28,7 @@ export function ResultsScreen() {
         title="Exam result"
         description="A full review of the latest evaluated paper, including section-wise performance and question-level feedback."
         action={
-          <Link href="/" className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-3 text-sm text-white">
+          <Link href="/" className="inline-flex items-center gap-2 rounded-full bg-ink px-5 py-3 text-sm text-white" style={{ color: '#ffffff' }}>
             <ArrowLeft className="h-4 w-4" />
             Back to home
           </Link>

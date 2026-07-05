@@ -48,6 +48,7 @@ export function SavedTestCard({ test }: { test: SavedTest }) {
         <button
           onClick={handleOpen}
           className="w-full text-center inline-flex justify-center rounded-full bg-ink px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 cursor-pointer"
+          style={{ color: '#ffffff' }}
         >
           Open paper
         </button>

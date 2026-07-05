@@ -96,6 +96,7 @@ export function AppShell({ children, currentPath }: AppShellProps) {
                     isCollapsed && "justify-center px-0 w-12 h-12 rounded-full"
                   )}
                   title={isCollapsed ? item.label : undefined}
+                  style={active ? { color: '#0f172a' } : undefined}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
                   {!isCollapsed && <span>{item.label}</span>}
@@ -180,6 +181,7 @@ export function AppShell({ children, currentPath }: AppShellProps) {
                     "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400",
                     active ? "bg-white text-[#0f172a]" : "text-white/70 hover:bg-white/10 hover:text-white"
                   )}
+                  style={active ? { color: '#0f172a' } : undefined}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
                   {item.label}

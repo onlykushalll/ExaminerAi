@@ -45,7 +45,7 @@ export default function MyPapersPage() {
             You haven&apos;t uploaded or practiced any papers yet.
           </p>
           <div className="mt-6">
-            <Link href="/" className="inline-flex rounded-full bg-ink px-6 py-3 text-sm font-medium text-white transition hover:bg-slate-800">
+            <Link href="/" className="inline-flex rounded-full bg-ink px-6 py-3 text-sm font-medium text-white transition hover:bg-slate-800" style={{ color: '#ffffff' }}>
               Go to PDF Parser
             </Link>
           </div>
