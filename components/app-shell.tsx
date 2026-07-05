@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Library, Menu, ScanText, X } from "lucide-react";
+import { Library, Menu, ScanText, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
@@ -18,6 +18,21 @@ type AppShellProps = {
 
 export function AppShell({ children, currentPath }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("examiner-sidebar-collapsed");
+    if (saved === "true") {
+      setIsCollapsed(true);
+    }
+  }, []);
+
+  const handleToggleCollapse = () => {
+    const nextState = !isCollapsed;
+    setIsCollapsed(nextState);
+    localStorage.setItem("examiner-sidebar-collapsed", String(nextState));
+  };
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
@@ -47,14 +62,15 @@ export function AppShell({ children, currentPath }: AppShellProps) {
 
   return (
     <div className="min-h-screen">
-      <div className="mx-auto flex max-w-[1400px] gap-4 px-3 py-3 sm:px-4 sm:py-4 lg:px-6">
-        {/* ── Desktop Sidebar (shifted lefter — reduced gap + padding) ── */}
+      <div className="mx-auto flex max-w-[1600px] w-full gap-4 px-3 py-3 sm:px-4 sm:py-4 lg:px-6">
+        {/* ── Desktop Sidebar (collapsible & shifted left) ── */}
         <aside
           className={cn(
-            "sticky top-4 hidden h-[calc(100vh-2rem)] w-64 shrink-0 flex-col rounded-[2rem] border border-white/60 bg-ink px-5 py-7 text-white shadow-soft lg:flex"
+            "sticky top-4 hidden h-[calc(100vh-2rem)] shrink-0 flex-col rounded-[2rem] border border-white/60 bg-ink py-7 text-white shadow-soft transition-all duration-300 ease-in-out lg:flex",
+            isCollapsed ? "w-20 px-3 items-center" : "w-64 px-5"
           )}
         >
-          <div>
+          <div className={cn("transition-all duration-300 w-full", isCollapsed ? "opacity-0 h-0 overflow-hidden" : "opacity-100")}>
             <div className="inline-flex rounded-full bg-white/10 px-3 py-1 text-xs uppercase tracking-[0.2em] text-white/70">
               Examiner.ai
             </div>
@@ -65,7 +81,7 @@ export function AppShell({ children, currentPath }: AppShellProps) {
               Upload PDFs and move into a clean test flow without extra screens.
             </p>
           </div>
-          <nav className="mt-8 space-y-2">
+          <nav className={cn("mt-8 space-y-2 w-full", isCollapsed && "flex flex-col items-center")}>
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = currentPath === item.href;
@@ -76,18 +92,39 @@ export function AppShell({ children, currentPath }: AppShellProps) {
                   href={item.href}
                   className={cn(
                     "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400",
-                    active ? "bg-white text-ink" : "text-white/70 hover:bg-white/10 hover:text-white"
+                    active ? "bg-white text-[#0f172a]" : "text-white/70 hover:bg-white/10 hover:text-white",
+                    isCollapsed && "justify-center px-0 w-12 h-12 rounded-full"
                   )}
+                  title={isCollapsed ? item.label : undefined}
                 >
                   <Icon className="h-4 w-4 shrink-0" />
-                  {item.label}
+                  {!isCollapsed && <span>{item.label}</span>}
                 </Link>
               );
             })}
           </nav>
 
-          <div className="mt-auto pt-8">
-            <p className="text-xs text-white/40">
+          <div className="mt-auto pt-8 flex flex-col gap-4 w-full items-center">
+            <button
+              type="button"
+              onClick={handleToggleCollapse}
+              className={cn(
+                "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm text-white/70 hover:bg-white/10 hover:text-white transition w-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400 cursor-pointer",
+                isCollapsed && "justify-center px-0 w-12 h-12 rounded-full"
+              )}
+              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {isCollapsed ? (
+                <ChevronRight className="h-4 w-4 shrink-0" />
+              ) : (
+                <>
+                  <ChevronLeft className="h-4 w-4 shrink-0" />
+                  <span>Collapse</span>
+                </>
+              )}
+            </button>
+            
+            <p className={cn("text-xs text-white/40 text-center transition-all duration-300", isCollapsed ? "opacity-0 h-0 overflow-hidden" : "opacity-100")}>
               v3.1 · AI-powered
             </p>
           </div>
@@ -141,7 +178,7 @@ export function AppShell({ children, currentPath }: AppShellProps) {
                   href={item.href}
                   className={cn(
                     "flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400",
-                    active ? "bg-white text-ink" : "text-white/70 hover:bg-white/10 hover:text-white"
+                    active ? "bg-white text-[#0f172a]" : "text-white/70 hover:bg-white/10 hover:text-white"
                   )}
                 >
                   <Icon className="h-4 w-4 shrink-0" />

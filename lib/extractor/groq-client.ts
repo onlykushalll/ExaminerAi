@@ -84,6 +84,9 @@ async function createChatCompletionWithFallback(
         ...params,
         model,
       });
+      if (!response || !response.choices || response.choices.length === 0) {
+        throw new Error(`Invalid response shape (no choices): ${JSON.stringify(response)}`);
+      }
       return response;
     } catch (err: any) {
       console.warn(`[ai-client] Model ${model} failed:`, err?.message || err);

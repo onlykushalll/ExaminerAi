@@ -14,6 +14,12 @@
 const OLLAMA_URL = process.env.NEXT_PUBLIC_OLLAMA_URL || "http://localhost:11434";
 const OLLAMA_OCR_MODEL = process.env.NEXT_PUBLIC_OLLAMA_OCR_MODEL || "glm-ocr:latest";
 
+/** Dynamically route through local proxy to bypass CORS in browser */
+const getOllamaEndpoint = () => {
+  const isBrowser = typeof window !== 'undefined';
+  return isBrowser ? "/api/ollama" : `${OLLAMA_URL}/api/generate`;
+};
+
 /**
  * Extract text from a PDF or image file using local GLM-OCR via Ollama.
  *
@@ -35,7 +41,7 @@ export async function extractTextWithGLMOCR(
   const base64 = await fileToBase64(file);
 
   onProgress?.(30, `Sending to GLM-OCR (${OLLAMA_OCR_MODEL})...`);
-  const response = await fetch(`${OLLAMA_URL}/api/generate`, {
+  const response = await fetch(getOllamaEndpoint(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -97,7 +103,7 @@ async function extractTextFromPDFWithGLMOCR(
     const base64Data = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
 
     onProgress?.(pct + 5, `Running GLM-OCR on page ${pageNum} of ${pdf.numPages}...`);
-    const response = await fetch(`${OLLAMA_URL}/api/generate`, {
+    const response = await fetch(getOllamaEndpoint(), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
