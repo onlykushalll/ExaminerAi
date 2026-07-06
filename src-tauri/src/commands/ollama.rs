@@ -119,7 +119,7 @@ pub async fn ollama_pull_model(
 
         let lines: Vec<&str> = buffer.split('\n').collect();
         if lines.len() > 1 {
-            buffer = lines.last().unwrap().to_string();
+            let last_line = lines.last().unwrap().to_string();
             for line in &lines[..lines.len() - 1] {
                 if line.trim().is_empty() { continue; }
                 if let Ok(data) = serde_json::from_str::<serde_json::Value>(line) {
@@ -137,21 +137,21 @@ pub async fn ollama_pull_model(
                     }
                 }
             }
+            buffer = last_line;
         }
     }
 
-    Ok(models)
+    Ok(())
 }
 
 use tauri_plugin_shell::ShellExt;
-use tauri::{AppHandle, Emitter, Manager};
-use std::process::Child;
+use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
 
 // Global to hold the running Ollama process so we can kill it on app exit
-static OLLAMA_PROCESS: Mutex<Option<Child>> = Mutex::new(None);
+static OLLAMA_PROCESS: Mutex<Option<CommandChild>> = Mutex::new(None);
 
 /// Start the bundled Ollama sidecar in the background.
 /// Called on app launch. If Ollama is already running externally, skips spawning.
@@ -182,10 +182,18 @@ pub async fn start_ollama_sidecar(app: AppHandle) -> Result<bool, String> {
 
     // Spawn a task to read sidecar output (for debugging)
     tauri::async_runtime::spawn(async move {
-        use futures_util::StreamExt;
-        while let Some(event) = rx.next().await {
-            if let Some(line) = event.event.as_deref() {
-                println!("[ollama-sidecar] {}", line);
+        while let Some(event) = rx.recv().await {
+            match event {
+                CommandEvent::Stdout(line) => {
+                    println!("[ollama-sidecar] {}", String::from_utf8_lossy(&line).trim());
+                }
+                CommandEvent::Stderr(line) => {
+                    eprintln!("[ollama-sidecar stderr] {}", String::from_utf8_lossy(&line).trim());
+                }
+                CommandEvent::Terminated(payload) => {
+                    println!("[ollama-sidecar terminated] Code: {:?}", payload.code);
+                }
+                _ => {}
             }
         }
     });
@@ -207,7 +215,7 @@ pub async fn start_ollama_sidecar(app: AppHandle) -> Result<bool, String> {
 #[tauri::command]
 pub fn stop_ollama_sidecar() -> Result<(), String> {
     let mut proc = OLLAMA_PROCESS.lock().unwrap();
-    if let Some(child) = proc.take() {
+    if let Some(mut child) = proc.take() {
         println!("[ollama] Stopping sidecar...");
         child.kill().map_err(|e| format!("Failed to kill ollama: {}", e))?;
     }
@@ -232,7 +240,7 @@ pub async fn ensure_glm_ocr_model(app: AppHandle, url: Option<String>) -> Result
     let _ = app.emit("ollama-pull-status", "Downloading GLM-OCR model (1.4GB)...");
     
     // Call the existing pull function (already implemented)
-    ollama_pull_model(app, "glm-ocr:latest".to_string(), Some(base_url)).await?;
+    ollama_pull_model(app.clone(), "glm-ocr:latest".to_string(), Some(base_url)).await?;
     
     println!("[ollama] GLM-OCR download complete!");
     let _ = app.emit("ollama-pull-status", "GLM-OCR ready!");
