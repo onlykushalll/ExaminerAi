@@ -29,54 +29,44 @@ fn main() {
 
     // Compile succeeded! Let's sign any recently modified target executables.
     
-    // Parse output file from -o if present
+    // Parse output file or directory from arguments
+    let mut output_dirs = Vec::new();
     let mut output_files = Vec::new();
     let mut i = 0;
     while i < compiler_args.len() {
         if compiler_args[i] == "-o" && i + 1 < compiler_args.len() {
-            let out_file = &compiler_args[i + 1];
-            if out_file.ends_with(".exe") || out_file.ends_with(".dll") {
-                output_files.push(PathBuf::from(out_file));
-            }
+            output_files.push(PathBuf::from(&compiler_args[i + 1]));
+            i += 2;
+        } else if compiler_args[i] == "--out-dir" && i + 1 < compiler_args.len() {
+            output_dirs.push(PathBuf::from(&compiler_args[i + 1]));
             i += 2;
         } else {
             i += 1;
         }
     }
 
-    // Find target directories to walk
-    let mut target_paths = Vec::new();
-    if let Ok(curr) = env::current_dir() {
-        let mut p = curr.as_path();
-        loop {
-            let t = p.join("target");
-            if t.is_dir() {
-                target_paths.push(t);
-            }
-            let st = p.join("src-tauri").join("target");
-            if st.is_dir() {
-                target_paths.push(st);
-            }
-            if let Some(parent) = p.parent() {
-                p = parent;
-            } else {
-                break;
-            }
-        }
-    }
-
     let mut files_to_sign = HashSet::new();
+
+    // 1. Process output_files (handling cases with/without .exe extension)
     for out_file in output_files {
         if out_file.is_file() {
             if let Ok(abs) = fs::canonicalize(&out_file) {
                 files_to_sign.insert(abs);
             }
         }
+        let exe_file = out_file.with_extension("exe");
+        if exe_file.is_file() {
+            if let Ok(abs) = fs::canonicalize(&exe_file) {
+                files_to_sign.insert(abs);
+            }
+        }
     }
 
-    // Walk target directories
-    for t_dir in target_paths {
-        walk_dir(&t_dir, &t0, &mut files_to_sign);
+    // 2. Process output_dirs (walk the output directory directly)
+    for out_dir in output_dirs {
+        if out_dir.is_dir() {
+            walk_dir(&out_dir, &t0, &mut files_to_sign);
+        }
     }
 
     let signtool = r"C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\signtool.exe";
