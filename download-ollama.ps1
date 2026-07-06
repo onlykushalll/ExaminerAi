@@ -4,9 +4,10 @@ $url = "https://github.com/ollama/ollama/releases/latest/download/ollama-windows
 $output = "src-tauri/binaries/ollama-windows-amd64.zip"
 $extractPath = "src-tauri/binaries"
 
-Write-Host "Downloading Ollama for Windows..."
+$ProgressPreference = 'SilentlyContinue'
+Write-Host "Downloading Ollama for Windows (via curl)..."
 New-Item -ItemType Directory -Force -Path $extractPath | Out-Null
-Invoke-WebRequest -Uri $url -OutFile $output
+curl.exe -L -o $output $url
 
 Write-Host "Extracting..."
 Expand-Archive -Path $output -DestinationPath $extractPath -Force
