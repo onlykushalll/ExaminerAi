@@ -53,3 +53,9 @@ src-tauri/binaries/
 # Rust wrapper binary outputs
 rustc-wrapper.exe
 rustc-wrapper.pdb
+
+
+# AI & Session residue
+.agents/
+.claude/
+*.handoff.md
