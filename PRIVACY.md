@@ -42,4 +42,4 @@ The application stores settings locally on your machine via Tauri's local applic
 ## 5. Contact
 
 For security questions or privacy inquiries, please open an issue on our GitHub repository:
-https://github.com/onlykushalll/ExaminerAi
+the project repository
