@@ -41,5 +41,4 @@ The application stores settings locally on your machine via Tauri's local applic
 
 ## 5. Contact
 
-For security questions or privacy inquiries, please open an issue on our GitHub repository:
-the project repository
+For security questions, licensing, or privacy inquiries, contact `creatormanager27@gmail.com` or consult the repository maintainer (`https://github.com/onlykushalll`).

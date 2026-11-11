@@ -34,4 +34,4 @@ IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMA
 
 ## 5. License
 
-ExaminerAI is open-source software licensed under the MIT License.
+ExaminerAI is a proprietary commercial evaluation asset governed by [LICENSE.md](./LICENSE.md). Third-party runtime dependencies remain under their respective open-source licenses. For commercial licensing or IP acquisition inquiries, contact `creatormanager27@gmail.com`.
