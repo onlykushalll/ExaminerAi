@@ -1,139 +1,99 @@
-# 🎯 Examiner.AI (v3.1)
+# 🎯 Examiner.AI (v2.0 / Tauri Desktop & Web)
 
-> **Transform any CBSE/Board exam paper PDF or Scanned Image into a timed, interactive practice test with Board-style AI grading, diagram display, and real-time step-wise feedback.**
+> **Transform any CBSE/Board exam paper PDF or scanned image into a timed, interactive practice test with board-style AI grading, diagram display, and step-wise feedback.**
 
-Examiner.AI is a highly optimized, client-first Next.js web application designed to help students practice and evaluate their performance on exam papers. It integrates a local **GLM-OCR** pipeline to parse scanned/handwritten documents, standardizes question extraction via **Groq & OpenRouter** multi-provider fallback chains, and runs a strict dual-pass CBSE-aligned evaluation engine to grade answers step-by-step.
-
----
-
-## 🦖 Playable Chrome Dino Loading Screen & Meteorite Strike
-
-To bridge the gap during OCR processing and AI question parsing, Examiner.AI features an embedded **playable Chrome Dino game** directly on the loading screen:
-* **Interactive Gameplay**: Control the retro pixel dinosaur using the `Spacebar`, `ArrowUp`, or simple mouse clicks/touch taps to jump over incoming obstacles (cacti).
-* **High-Score Persistence**: Tracks current session score and high score.
-* **Animated Meteorite Strike**: When the server successfully finishes parsing the questions, obstacle spawning pauses, a fiery meteorite falls from the sky, collides with the Dino in a screen-shaking particle explosion, and shows a speech bubble: `"test ready, lol!"` before transitioning automatically to the exam panel.
+Examiner.AI is a client-first **React 19 + TypeScript + Vite 8** application wrapped in a native **Rust / Tauri v2** desktop shell (`src-tauri/`). It pairs a local **Ollama (`glm-ocr:latest`) + Tesseract.js + `pdfjs-dist`** extraction pipeline with a **Groq -> OpenRouter** multi-provider fallback chain to structure question papers and run dual-pass CBSE-aligned step marking.
 
 ---
 
-## ✨ Features & Architecture
+## 🏗️ System Architecture
 
-### 1. Unified Multi-Client Fallback Chain
-* **Primary Client (Groq)**: Targets `llama-3.3-70b-versatile` as the main parsing and grading model (processing at 250+ tokens/second). Falls back to `llama-3.1-8b-instant` if rate limits are exceeded.
-* **Secondary Client (OpenRouter)**: Automatically fallbacks if Groq keys are absent or rate-limited. The sequence queries:
-  1. `nvidia/nemotron-3-ultra-550b-a55b:free`
-  2. `openai/gpt-oss-120b:free`
-  3. `nvidia/nemotron-3-super-120b-a12b:free`
-* **Local Ollama CORS Proxy**: Requests to `glm-ocr` are routed through a server-side route `/api/ollama` to bypass browser-specific CORS loopback constraints.
-
-### 2. 3-Pass layout Extraction Pipeline
-* **Pass 1: Document Layout Detection**: Scans the document stream to separate headers, instructions, sections (Section A, Part I), questions, solutions, and choice boundaries (`OR` choices).
-* **Pass 2: Question Extraction**: Extracts text strictly from question boundaries. Rejects equations, formulas, calculations, or conclusion texts, and maps specific marks notations.
-* **Pass 3: Solution Matching**: Matches appended answer keys or solutions in the document to populate `expectedAnswer` fields. If no keys are found, answers are generated dynamically by the AI during grading.
-
-### 3. Timed Practice Test Experience
-* **Timer Auto-Pause**: Listens to `visibilitychange` to automatically pause the test stopwatch when the student switches browser tabs.
-* **Autosave & Crash Recovery**: Periodically saves the draft state (answers, time remaining, bookmarks, and evaluations) to `localStorage`. If the browser crashes, the test restores automatically with the timer paused.
-* **Leave Warnings**: Prevents accidental tab closures via a `beforeunload` interceptor warning.
-* **Diagram Reference**: Displays expandable `<details>` panels containing rendered base64 PDF page references for diagram-based questions.
-
----
-
-## 🛠️ Technology Stack
-
-* **Frontend**: Next.js 15 (App Router), React 19, Tailwind CSS v4, Lucide React
-* **PDF Rendering**: `pdfjs-dist` (loaded dynamically with local offline worker fallback)
-* **OCR Engines**: Local Ollama (`glm-ocr:latest` for high-quality scanned documents) + `tesseract.js` (offline fallback)
-* **Evaluation Core**: OpenAI SDK configured with unified Groq/OpenRouter fallback routing
-* **Design Guidelines**: Swiss Minimal layout architecture, custom OKLCH color mappings, and 8pt responsive grids.
-
----
-
-## 🚀 Getting Started & Installation
-
-### 📦 Desktop App Installation (Windows)
-
-Because Windows Smart App Control (SAC) and SmartScreen block unsigned applications, the desktop app installer is signed using a **self-signed certificate** generated automatically during our GitHub Actions CI build process.
-
-To run the desktop app without security warnings, you must import the certificate to your local certificate store once:
-
-1. Download the latest installer package from **GitHub Releases** (contains the `.exe` installer and `ExaminerAI-SelfSigned.cer` certificate).
-2. Extract the files.
-3. Right-click the `ExaminerAI-SelfSigned.cer` certificate file and choose **Install Certificate**.
-4. Choose **Local Machine** (requires administrator privileges) or **Current User**, and click Next.
-5. Choose **Place all certificates in the following store** and click **Browse**.
-6. Select **Trusted Root Certification Authorities** and click OK.
-7. Click Next and then **Finish**.
-8. Double-click the `ExaminerAI-Setup-0.1.0.exe` installer — it will install and run smoothly with zero terminal or security warnings!
-
----
-
-### 🌐 Web Mode Setup (Local Development)
-
-#### 1. Prerequisites
-* **Node.js**: Ensure you have Node.js 18+ installed.
-* **Ollama (Optional - for offline scanned PDF/Image OCR)**:
-  Download and install Ollama, then run/pull the GLM-OCR model:
-  ```bash
-  ollama run glm-ocr:latest
-  ```
-
-#### 2. Environment Configuration
-Create a `.env` file in the root directory:
-```env
-# Groq API Key (Required for primary AI parsing & grading)
-GROQ_API_KEY=gsk_your_actual_groq_api_key_here
-
-# OpenRouter API Key (Fallback client key)
-OPENROUTER_API_KEY=your_openrouter_api_key_here
+```mermaid
+flowchart LR
+    User["Educator / Student<br/>React 19 + Vite 8 UI"] --> PDF["PDF & Canvas Pipeline<br/>pdfjs-dist / pdf-parse"]
+    User --> Desktop["Tauri v2 Native Shell<br/>Rust Commands (src-tauri)"]
+    PDF --> OCR["Local OCR Cascade<br/>Ollama glm-ocr:latest -> Tesseract.js"]
+    OCR --> Parser["Multi-Pass Paper Parser<br/>Section, Marks & OR-Choice Boundary Engine"]
+    Parser --> AI["Unified AI Fallback Chain"]
+    AI -->|"Primary (250+ tok/s)"| Groq["Groq API<br/>llama-3.3-70b -> llama-3.1-8b"]
+    AI -->|"Automatic Fallback"| OR["OpenRouter API<br/>Free / Custom Model Chain"]
+    Parser --> TestUI["Timed Test Runner +<br/>Crash-Safe localStorage + Scorecard"]
 ```
 
-#### 3. Installation & Run
+For subsystem interfaces and pipeline internals, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+
+---
+
+## ✨ Key Capabilities
+
+1. **Unified Multi-Client Fallback Chain (`src/lib/extractor/groq-client.ts`)**
+   - **Primary (Groq):** `llama-3.3-70b-versatile` with instant fallback to `llama-3.1-8b-instant`.
+   - **Secondary (OpenRouter):** Automatic failover if Groq is unconfigured or rate-limited (`OPENROUTER_API_KEY`).
+   - **Offline OCR (`src-tauri/src/commands/ollama.rs` & `ocr_extractor.ts`):** Managed local Ollama `glm-ocr:latest` invocation and `tesseract.js` fallback.
+2. **Multi-Pass Layout Extraction & Local Normalization (`src/lib/extractor/local/`)**
+   - Separates document headers, `OR` choice branches, mark allocations, and appended solutions.
+3. **Interactive Timed Practice & Step-Wise Grading**
+   - Auto-pauses on tab switch (`visibilitychange`), crash-recovers drafts via storage, embeds the interactive Dino strike preloader, and evaluates responses with partial-credit CBSE rubrics.
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- **Node.js** 18+ and **npm**
+- **Rust / Cargo** (optional, required only for `npm run tauri:dev` / `npm run tauri:build`)
+- **Ollama** (optional, for local `glm-ocr:latest` scanned OCR)
+
+### 1. Configure Environment & Install
 ```bash
-# Install dependencies
+cp .env.example .env
+# Add GROQ_API_KEY and/or OPENROUTER_API_KEY in .env
 npm install
-
-# Run the local development server (launches on Port 5173)
-npm run dev
 ```
-Open [http://localhost:5173](http://localhost:5173) to view the web app.
+
+### 2. Verify & Run
+```bash
+# Typecheck + production Vite bundle
+npm run typecheck
+npm run build
+
+# Launch web dev server
+npm run dev
+
+# Or launch native Rust/Tauri desktop shell
+npm run tauri:dev
+```
 
 ---
 
 ## 📂 Project Structure
 
-```
-├── app/
-│   ├── api/                   # API Routes (OCR proxy, extraction, evaluation)
-│   │   ├── evaluate/          # CBSE-grade answer scorer
-│   │   ├── ollama/            # Server-side proxy for GLM-OCR
-│   │   └── question-extraction/ # 3-pass extraction pipeline
-│   ├── my-papers/             # Saved tests and scorecards page
-│   ├── processing/            # Transition progress spinner
-│   ├── results/               # Scorecard and detailed review page
-│   ├── test/                  # Timed test execution workspace
-│   ├── globals.css            # Base stylesheet and variables
-│   └── layout.tsx             # Root page shell wrappers
-├── components/                # Reusable UI component modules
-│   ├── app-shell.tsx          # Collapsible sidebar, mobile drawer, layout wrapping
-│   ├── dino-game.tsx          # Interactive Dino game with meteorite strike
-│   ├── home-dashboard.tsx     # Files uploader drag/drop slots
-│   └── test-experience.tsx    # Question carousel, bookmarking, and timer hooks
-├── lib/
-│   ├── extractor/
-│   │   ├── groq-client.ts     # Unified fallback completions, prompts, and evaluators
-│   │   ├── ocr_extractor.ts   # Local GLM-OCR and canvas converters
-│   │   ├── text-extractor.ts  # OCR-Tesseract fallback Router
-│   │   └── types.ts           # Pipeline schema interfaces
-│   ├── result-storage.ts      # Browser localStorage persistence layer
-│   └── result-summary.ts      # Scorecard math aggregates
-├── PRODUCT.md                 # Product Register & design specs (Swiss Minimal)
-├── DESIGN.md                  # Design Tokens & OKLCH color mappings
-└── LICENSE                    # MIT license specification
+```text
+ExaminerAI/
+├── src/
+│   ├── pages/               # HomePage, MyPapersPage, TestPage, ResultsPage, SettingsPage
+│   ├── components/          # UI modules (dino-game, home-dashboard, test-experience, question-palette, etc.)
+│   └── lib/
+│       └── extractor/       # groq-client, ocr_extractor, pdf-extractor, text-extractor, local/*
+├── src-tauri/               # Native Rust Tauri v2 desktop wrapper + Ollama commands
+│   ├── src/commands/        # ollama.rs command handlers
+│   ├── Cargo.toml
+│   └── tauri.conf.json
+├── public/                  # Offline pdf.worker.min.mjs worker
+├── .env.example             # Environment variable template (GROQ / OPENROUTER / OLLAMA)
+├── ARCHITECTURE.md          # Engineering & due-diligence architecture overview
+├── LICENSE.md               # Proprietary commercial evaluation license & carve-out
+└── package.json
 ```
 
 ---
 
-## 📄 License & Copyright
+## 📄 Commercial Licensing & IP Acquisition
 
-Copyright © 2026 `onlykushalll`.  
-Licensed under the [MIT License](LICENSE).
+Copyright (c) 2026 Kushal (@onlykushalll). All Rights Reserved.  
+Proprietary software asset available for commercial licensing, technical due diligence, and full IP acquisition — see [LICENSE.md](./LICENSE.md).
+
+**Acquisition & Licensing Contact:** `creatormanager27@gmail.com` · GitHub: `https://github.com/onlykushalll`
+
+### Third-Party Open-Source Carve-Out
+Upstream frameworks and runtime dependencies (React, Vite, Tailwind CSS, Tauri v2, Rust crates, `pdfjs-dist`, `tesseract.js`, `lucide-react`, OpenAI Node SDK, and Ollama/GLM-OCR models) remain governed by their respective upstream open-source licenses.
