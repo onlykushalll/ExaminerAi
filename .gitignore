@@ -2,13 +2,24 @@
 node_modules/
 /jspm_packages/
 
-# Next.js build outputs
+# Next.js / Vite build outputs
 .next/
 out/
-
-# production/build outputs
 build/
 dist/
+
+# Rust / Tauri build outputs
+target/
+src-tauri/target/
+
+# Python & virtual environments
+.venv/
+__pycache__/
+
+# Database & storage
+*.db
+*.sqlite
+*.sqlite3
 
 # TypeScript build info cache
 *.tsbuildinfo
@@ -54,8 +65,11 @@ src-tauri/binaries/
 rustc-wrapper.exe
 rustc-wrapper.pdb
 
-
 # AI & Session residue
 .agents/
 .claude/
 *.handoff.md
+
+# Reserved exclusions
+dcozi/
+~dcozi/

@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "description": "AI-powered exam paper question extraction engine",
   "private": true,
+  "license": "UNLICENSED",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
